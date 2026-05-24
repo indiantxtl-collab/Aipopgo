@@ -50,6 +50,13 @@ async function safeFetch<T>(
 }
 
 export const api = {
+  getUserByUsername: async (
+    username: string,
+  ): Promise<{ user?: User; error?: string }> => {
+    return safeFetch(
+      `/api/users/username/${encodeURIComponent(username)}`,
+    );
+  },
   getSystemData: async (): Promise<any> => {
     return safeFetch<DatabaseSchema | any>(
       '/api/data',
@@ -248,6 +255,16 @@ export const api = {
         body: JSON.stringify(data),
       },
     );
+  },
+  updateSettings: async (
+    userId: string,
+    section: string,
+    values: Record<string, boolean | string>,
+  ): Promise<any> => {
+    return safeFetch(`/api/users/${userId}/settings`, {
+      method: 'PUT',
+      body: JSON.stringify({ section, values }),
+    });
   },
 
   getNotifications: async (

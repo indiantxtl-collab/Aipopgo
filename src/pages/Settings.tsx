@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage, LANGUAGES } from '../context/LanguageContext';
+import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 
 const SETTING_ITEMS = [
@@ -107,6 +108,24 @@ function SettingsMenu() {
 
 function GenericSettingsPage({ title, items }: { title: string, items: string[] }) {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const [values, setValues] = useState<Record<string, boolean>>(
+    Object.fromEntries(items.map((item) => [item, false])),
+  );
+  const [saving, setSaving] = useState(false);
+
+  const onSave = async () => {
+    if (!currentUser) return;
+    setSaving(true);
+    const section = title.toLowerCase().replace(/\s+/g, '_');
+    const res = await api.updateSettings(currentUser.id, section, values);
+    setSaving(false);
+    if (res?.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success('Settings saved');
+  };
   return (
     <div className="w-full min-h-screen bg-slate-50 pb-20">
       <div className="bg-white px-4 py-3 sticky top-16 z-30 border-b border-slate-100 flex items-center justify-between">
@@ -122,23 +141,14 @@ function GenericSettingsPage({ title, items }: { title: string, items: string[] 
            {items.map((item, i) => (
              <div key={i} className={`flex items-center justify-between p-5 bg-white ${i !== items.length - 1 ? 'border-b border-slate-50' : ''}`}>
                <span className="font-bold text-slate-700 text-[15px]">{item}</span>
-               <div className="w-12 h-6 bg-slate-200 rounded-full relative cursor-pointer" onClick={(e) => {
-                 e.currentTarget.classList.toggle('bg-slate-200');
-                 e.currentTarget.classList.toggle('bg-pink-500');
-                 const thumb = e.currentTarget.children[0] as HTMLElement;
-                 if (thumb.style.transform === 'translateX(24px)') {
-                   thumb.style.transform = 'translateX(0px)';
-                 } else {
-                   thumb.style.transform = 'translateX(24px)';
-                 }
-               }}>
-                 <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 shadow-sm transition-transform" />
-               </div>
+               <button className={`w-12 h-6 ${values[item] ? 'bg-pink-500' : 'bg-slate-200'} rounded-full relative cursor-pointer`} onClick={() => setValues((prev) => ({ ...prev, [item]: !prev[item] }))}>
+                 <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 shadow-sm transition-transform" style={{ transform: values[item] ? 'translateX(24px)' : 'translateX(0px)' }} />
+               </button>
              </div>
            ))}
         </div>
         <div className="px-4 text-center">
-           <button onClick={() => toast.success('Settings saved')} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl">
+           <button disabled={saving} onClick={onSave} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl disabled:opacity-60">
              Save Changes
            </button>
         </div>
