@@ -9,6 +9,7 @@ export function Login() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
@@ -20,6 +21,7 @@ export function Login() {
     setError('');
 
     try {
+      setIsSubmitting(true);
       const res = await api.login(identifier, password);
       if (res.user) {
         login(res.user);
@@ -33,6 +35,8 @@ export function Login() {
       }
     } catch(err) {
       setError('An error occurred during login');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -120,9 +124,10 @@ export function Login() {
               <motion.button 
                  whileTap={{ scale: 0.95 }}
                  type="submit" 
+                 disabled={isSubmitting}
                  className="w-full bg-gradient-to-r from-pink-500 to-yellow-400 text-white font-black py-4 rounded-full shadow-xl shadow-pink-300/30 active:scale-95 transition-all text-[15px] tracking-wide"
               >
-                Login to Ai Pop
+                {isSubmitting ? 'Logging in...' : 'Login to Ai Pop'}
               </motion.button>
             </div>
           </form>
