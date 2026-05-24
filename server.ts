@@ -1,7 +1,5 @@
 import express from 'express';
 import path from 'path';
-import cors from 'cors';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import fileUpload from 'express-fileupload';
 
@@ -89,8 +87,7 @@ interface Message {
 }
 type UserSettings = Record<string, Record<string, boolean | string>>;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.resolve();
 
 export const AI_USER_ID = '100000';
 
@@ -175,7 +172,15 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  app.use(cors());
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.status(204).end();
+    }
+    return next();
+  });
 
   app.use(
     fileUpload({
@@ -651,6 +656,12 @@ async function startServer() {
 
     return res.json({
       success: true,
+    });
+  });
+
+  app.use('/api/*', (req, res) => {
+    return res.status(404).json({
+      error: `API route not found: ${req.method} ${req.originalUrl}`,
     });
   });
 
