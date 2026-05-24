@@ -7,9 +7,20 @@ import { motion } from 'motion/react';
 import { Sparkles } from 'lucide-react';
 
 export function Home() {
-  const { systemData, currentUser } = useAuth();
+  const { systemData, currentUser, refreshSystemData } = useAuth();
   
-  if (!systemData) return null;
+  if (!systemData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <button
+          onClick={refreshSystemData}
+          className="px-6 py-3 rounded-full bg-slate-900 text-white font-bold"
+        >
+          Retry loading feed
+        </button>
+      </div>
+    );
+  }
   const db = systemData;
   
   const aiUser = db.users.find(u => u.id === AI_USER_ID);
@@ -28,7 +39,9 @@ export function Home() {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
-  if (!aiUser) return null;
+  if (!aiUser) {
+    return <div className="min-h-screen flex items-center justify-center text-slate-500">Creator profile unavailable.</div>;
+  }
 
   return (
     <div className="w-full flex-col flex items-center bg-slate-50 relative min-h-screen">
