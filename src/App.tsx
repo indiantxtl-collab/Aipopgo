@@ -29,6 +29,7 @@ function AppRoutes() {
 
       <Route element={<AppLayout />}>
         <Route path="/u/:username" element={<Profile />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/u/:username/followers" element={<FollowStats type="followers" />} />
         <Route path="/u/:username/following" element={<FollowStats type="following" />} />
 
