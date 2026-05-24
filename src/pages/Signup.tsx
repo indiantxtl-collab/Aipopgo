@@ -12,6 +12,7 @@ export function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -25,6 +26,7 @@ export function Signup() {
     }
 
     try {
+      setIsSubmitting(true);
       const res = await api.signup({ name, username, email, password });
       if (res.user) {
         login(res.user);
@@ -34,6 +36,8 @@ export function Signup() {
       }
     } catch(err) {
       setError('An error occurred during signup');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -146,9 +150,10 @@ export function Signup() {
               <motion.button 
                  whileTap={{ scale: 0.95 }}
                  type="submit" 
+                 disabled={isSubmitting}
                  className="w-full bg-gradient-to-r from-pink-500 to-yellow-400 text-white font-black py-4 rounded-full shadow-xl shadow-pink-300/30 active:scale-95 transition-all text-[15px] tracking-wide"
               >
-                Join Now
+                {isSubmitting ? 'Creating account...' : 'Join Now'}
               </motion.button>
             </div>
           </form>

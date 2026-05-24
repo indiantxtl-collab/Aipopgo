@@ -22,12 +22,26 @@ async function safeFetch<T>(
       },
     });
 
+    const raw = await response.text();
+    const contentType =
+      response.headers.get('content-type') || '';
     let data: any = null;
-
-    try {
-      data = await response.json();
-    } catch {
-      throw new Error('Invalid server response');
+    if (raw) {
+      if (contentType.includes('application/json')) {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          throw new Error('Invalid JSON response from server');
+        }
+      } else {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          throw new Error(
+            `Invalid server response (expected JSON, got ${contentType || 'unknown'})`,
+          );
+        }
+      }
     }
 
     if (!response.ok) {
@@ -37,7 +51,7 @@ async function safeFetch<T>(
       );
     }
 
-    return data;
+    return (data || {}) as T;
   } catch (error: any) {
     console.error(`API ERROR (${url})`, error);
 
@@ -50,6 +64,13 @@ async function safeFetch<T>(
 }
 
 export const api = {
+  getUserByUsername: async (
+    username: string,
+  ): Promise<{ user?: User; error?: string }> => {
+    return safeFetch(
+      `/api/users/username/${encodeURIComponent(username)}`,
+    );
+  },
   getSystemData: async (): Promise<any> => {
     return safeFetch<DatabaseSchema | any>(
       '/api/data',
@@ -248,6 +269,16 @@ export const api = {
         body: JSON.stringify(data),
       },
     );
+  },
+  updateSettings: async (
+    userId: string,
+    section: string,
+    values: Record<string, boolean | string>,
+  ): Promise<any> => {
+    return safeFetch(`/api/users/${userId}/settings`, {
+      method: 'PUT',
+      body: JSON.stringify({ section, values }),
+    });
   },
 
   getNotifications: async (

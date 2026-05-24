@@ -1,7 +1,5 @@
 import express from 'express';
 import path from 'path';
-import cors from 'cors';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import fileUpload from 'express-fileupload';
 
@@ -87,9 +85,9 @@ interface Message {
   text: string;
   timestamp: string;
 }
+type UserSettings = Record<string, Record<string, boolean | string>>;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.resolve();
 
 export const AI_USER_ID = '100000';
 
@@ -157,6 +155,7 @@ let db = {
   messages: [] as Message[],
   progressGoal: 10000,
   totalVotes: 3450,
+  userSettings: {} as UserSettings,
 };
 
 db.notifications.push({
@@ -173,7 +172,15 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  app.use(cors());
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.status(204).end();
+    }
+    return next();
+  });
 
   app.use(
     fileUpload({
@@ -391,6 +398,35 @@ async function startServer() {
     }
   });
 
+  app.post('/api/users/:followingId/follow', (req, res) => {
+    const { followerId } = req.body;
+    const followingId = req.params.followingId;
+    const follower = db.users.find((u) => u.id === followerId);
+    const following = db.users.find((u) => u.id === followingId);
+    if (!follower || !following) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    const exists = db.follows.find((f) => f.followerId === followerId && f.followingId === followingId);
+    if (exists) return res.json({ success: true });
+    db.follows.push({ followerId, followingId, timestamp: new Date().toISOString() });
+    following.followersCount += 1;
+    follower.followingCount += 1;
+    return res.json({ success: true });
+  });
+
+  app.post('/api/users/:followingId/unfollow', (req, res) => {
+    const { followerId } = req.body;
+    const followingId = req.params.followingId;
+    const idx = db.follows.findIndex((f) => f.followerId === followerId && f.followingId === followingId);
+    if (idx === -1) return res.json({ success: true });
+    db.follows.splice(idx, 1);
+    const follower = db.users.find((u) => u.id === followerId);
+    const following = db.users.find((u) => u.id === followingId);
+    if (following && following.followersCount > 0) following.followersCount -= 1;
+    if (follower && follower.followingCount > 0) follower.followingCount -= 1;
+    return res.json({ success: true });
+  });
+
   app.get('/api/users/:id', (req, res) => {
     const user = db.users.find((u) => u.id === req.params.id);
 
@@ -427,6 +463,27 @@ async function startServer() {
         password: undefined,
       },
     });
+  });
+
+  app.put('/api/users/:id/profile', (req, res) => {
+    const user = db.users.find((u) => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    const { name, bio, avatarUrl, coverUrl } = req.body || {};
+    if (typeof name === 'string' && name.trim()) user.name = name.trim();
+    if (typeof bio === 'string') user.bio = bio.trim();
+    if (typeof avatarUrl === 'string') user.avatarUrl = avatarUrl.trim() || null;
+    if (typeof coverUrl === 'string') user.coverUrl = coverUrl.trim() || null;
+    return res.json({ user: { ...user, password: undefined } });
+  });
+
+  app.put('/api/users/:id/settings', (req, res) => {
+    const user = db.users.find((u) => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    const { section, values } = req.body || {};
+    if (!section || typeof values !== 'object') return res.status(400).json({ error: 'Invalid settings payload.' });
+    if (!db.userSettings[user.id]) db.userSettings[user.id] = {};
+    db.userSettings[user.id][section] = { ...(db.userSettings[user.id][section] || {}), ...values };
+    return res.json({ success: true, settings: db.userSettings[user.id] });
   });
 
   app.get('/api/posts', (_, res) => {
@@ -599,6 +656,12 @@ async function startServer() {
 
     return res.json({
       success: true,
+    });
+  });
+
+  app.use('/api/*', (req, res) => {
+    return res.status(404).json({
+      error: `API route not found: ${req.method} ${req.originalUrl}`,
     });
   });
 

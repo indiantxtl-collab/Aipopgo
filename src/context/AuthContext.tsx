@@ -21,6 +21,7 @@ interface AuthContextType {
   isLoading: boolean;
   systemData: DatabaseSchema | null;
   refreshSystemData: () => Promise<void>;
+  hasBootError: boolean;
 }
 
 const AuthContext =
@@ -41,6 +42,8 @@ export function AuthProvider({
 
   const [systemData, setSystemData] =
     useState<DatabaseSchema | null>(null);
+  const [hasBootError, setHasBootError] =
+    useState(false);
 
   const refreshSystemData =
     useCallback(async () => {
@@ -101,12 +104,14 @@ export function AuthProvider({
           );
 
           setSystemData(null);
+          setHasBootError(true);
           setCurrentUser(null);
 
           return;
         }
 
         setSystemData(data);
+        setHasBootError(false);
 
         const storedUserId =
           localStorage.getItem(
@@ -136,6 +141,7 @@ export function AuthProvider({
 
         setCurrentUser(null);
         setSystemData(null);
+        setHasBootError(true);
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -176,6 +182,7 @@ export function AuthProvider({
         isLoading,
         systemData,
         refreshSystemData,
+        hasBootError,
       }}
     >
       {children}

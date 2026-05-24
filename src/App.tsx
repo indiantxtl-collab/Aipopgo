@@ -40,6 +40,7 @@ function AppRoutes() {
           <Route path="/messages" element={<MessagesList />} />
           <Route path="/messages/new/:userId" element={<MessageThread />} />
           <Route path="/settings/*" element={<Settings />} />
+          <Route path="/profile" element={<Profile />} />
           
           {/* Creator Pages Output */}
           <Route element={<CreatorRoute />}>
