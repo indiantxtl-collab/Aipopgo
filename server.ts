@@ -434,4 +434,4 @@ if (process.env.NODE_ENV !== 'production' || process.argv.includes('server.cjs')
   startViteServer();
 }
 
-export default app;
+module.exports = app;
