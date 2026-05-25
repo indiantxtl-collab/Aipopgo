@@ -357,7 +357,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
     if(avatarUrl !== undefined) user.avatarUrl = avatarUrl;
     if(coverUrl !== undefined) user.coverUrl = coverUrl;
     if(isPrivate !== undefined) user.isPrivate = isPrivate;
-    if(settings !== undefined) user.settings = settings;
+    if(settings !== undefined) (user as any).settings = settings;
     res.json({ user });
   });
 
@@ -426,8 +426,9 @@ async function startViteServer() {
     app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
   }
 
-  httpServer.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
-}
+  httpServer.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 if (process.env.NODE_ENV !== 'production' || process.argv.includes('server.cjs')) {
   startViteServer();
