@@ -28,25 +28,23 @@ function AppRoutes() {
       </Route>
 
       <Route element={<AppLayout />}>
-        <Route path="/u/:username" element={<Profile />} />
-        <Route path="/u/:username/followers" element={<FollowStats type="followers" />} />
-        <Route path="/u/:username/following" element={<FollowStats type="following" />} />
+  <Route element={<ProtectedRoute />}>
+    <Route path="/u/:username" element={<Profile />} />
+    <Route path="/u/:username/followers" element={<FollowStats type="followers" />} />
+    <Route path="/u/:username/following" element={<FollowStats type="following" />} />
 
-        {/* Protected App Pages Output */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/home" element={<Home />} />
-          <Route path="/search" element={<Search />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/messages" element={<MessagesList />} />
-          <Route path="/messages/new/:userId" element={<MessageThread />} />
-          <Route path="/settings/*" element={<Settings />} />
-          
-          {/* Creator Pages Output */}
-          <Route element={<CreatorRoute />}>
-             <Route path="/creator/*" element={<CreatorDashboard />} />
-          </Route>
-        </Route>
-      </Route>
+    <Route path="/home" element={<Home />} />
+    <Route path="/search" element={<Search />} />
+    <Route path="/notifications" element={<Notifications />} />
+    <Route path="/messages" element={<MessagesList />} />
+    <Route path="/messages/new/:userId" element={<MessageThread />} />
+    <Route path="/settings/*" element={<Settings />} />
+
+    <Route element={<CreatorRoute />}>
+      <Route path="/creator/*" element={<CreatorDashboard />} />
+    </Route>
+  </Route>
+</Route>
 
       <Route element={<ProtectedRoute />}>
         {/* Fullscreen Studio */}
