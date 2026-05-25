@@ -57,17 +57,14 @@ export function Profile() {
 
   const db = systemData;
 
-  let user = username
-    ? db.users.find(
-        (u: any) =>
-          u.username?.toLowerCase().trim() ===
-          username?.toLowerCase().trim()
-      )
-    : currentUser;
+  const cleanUsername = username?.replace('@', '').toLowerCase().trim();
 
-  if (!user && currentUser?.username === username) {
-    user = currentUser;
-  }
+let user = cleanUsername
+  ? db.users.find(
+      (u) =>
+        u.username?.toLowerCase().trim() === cleanUsername
+    )
+  : currentUser;
 
   if (!user) {
     return (
