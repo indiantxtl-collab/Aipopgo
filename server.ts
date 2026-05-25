@@ -165,6 +165,37 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
   app.get('/api/data', (req, res) => res.json(db));
 
+app.get('/api/users/:username', (req, res) => {
+  const user = db.users.find(
+    u =>
+      u.username.toLowerCase() ===
+      req.params.username.toLowerCase()
+  );
+
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  const followers = db.follows
+    .filter(f => f.followingId === user.id)
+    .map(f => db.users.find(u => u.id === f.followerId));
+
+  const following = db.follows
+    .filter(f => f.followerId === user.id)
+    .map(f => db.users.find(u => u.id === f.followingId));
+
+  const posts = db.posts.filter(
+    p => p.authorId === user.id
+  );
+
+  res.json({
+    user,
+    followers,
+    following,
+    posts
+  });
+});
+
   app.post('/api/login', (req, res) => {
     const { identifier, password } = req.body;
     if (identifier === 'aipopgirl@demo.com' && password === 'SuperSecureAiAdmin2026!') {
