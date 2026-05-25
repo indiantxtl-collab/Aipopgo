@@ -63,18 +63,27 @@ function BottomNav() {
   const location = useLocation();
   
   const navItems = [
-    { icon: Home, path: '/home' },
-    { icon: Search, path: '/search' },
-    { icon: Plus, path: '/studio', center: true },
-    { icon: Heart, path: '/messages' },
-    { icon: UserIcon, path: currentUser ? `/u/${currentUser.username}` : '/login' },
-  ];
+  { icon: Home, path: '/home' },
+  { icon: Search, path: '/search' },
+  { icon: Plus, path: '/studio', center: true },
+  { icon: Heart, path: '/messages' },
+  {
+    icon: UserIcon,
+    path:
+      currentUser && currentUser.username
+        ? `/u/${currentUser.username}`
+        : '/login',
+  },
+];
 
   return (
     <div className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-2xl border-t border-slate-100/50 z-40 pb-safe max-w-md mx-auto">
       <div className="flex justify-evenly items-center h-full px-2">
         {navItems.map((item) => {
-          const isActive = location.pathname.startsWith(item.path);
+          const isActive =
+  item.path !== '/'
+    ? location.pathname.includes(item.path)
+    : location.pathname === item.path;
           return (
             <NavLink
               key={item.path}
