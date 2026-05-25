@@ -35,13 +35,17 @@ export function Profile() {
   }
   const db = systemData;
   
-  const user = username
+  let user = username
   ? db.users.find(
       u =>
         u.username?.toLowerCase().trim() ===
         username?.toLowerCase().trim()
     )
   : currentUser;
+
+if (!user && currentUser?.username === username) {
+  user = currentUser;
+}
 
 console.log('Current User:', currentUser);
 console.log('Username Param:', username);
