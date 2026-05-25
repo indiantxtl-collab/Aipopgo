@@ -26,7 +26,13 @@ export function Profile() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   
-  if (!systemData) return null;
+  if (!systemData || !currentUser) {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <p className="text-slate-500 font-bold">Loading...</p>
+    </div>
+  );
+  }
   const db = systemData;
   
   const user = username 
