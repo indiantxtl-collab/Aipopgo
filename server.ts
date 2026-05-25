@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import fileUpload from 'express-fileupload';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
@@ -415,6 +414,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 async function startViteServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa'
