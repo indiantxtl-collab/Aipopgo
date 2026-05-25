@@ -8,6 +8,7 @@ import { User, Post } from '../../types';
 import { VerifiedBadge } from './VerifiedBadge';
 import { api } from '../../lib/api';
 import toast from 'react-hot-toast';
+import heroImage from '../../assets/hero.jpg';
 
 export function AiHeroCard({ aiUser }: { aiUser: User }) {
   const { currentUser, systemData, refreshSystemData } = useAuth();
@@ -103,7 +104,7 @@ export function AiHeroCard({ aiUser }: { aiUser: User }) {
           <div className="absolute inset-0 rounded-full border border-yellow-200 animate-pulse-glow" style={{ transform: 'scale(1.3)', animationDelay: '0.5s' }}></div>
           
           <img 
-            src={aiUser.avatarUrl || `https://api.dicebear.com/7.x/notionists/svg?seed=${aiUser.username}&backgroundColor=fbcfe8`}
+            src={heroImage}
             alt={aiUser.name} 
             className="w-28 h-28 object-cover rounded-full border-4 border-white shadow-xl bg-slate-50 relative z-10"
           />
