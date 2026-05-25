@@ -13,6 +13,7 @@ export interface User {
   followersCount: number;
   followingCount: number;
   isPrivate?: boolean;
+  settings?: Record<string, boolean>;
 }
 
 export interface Post {

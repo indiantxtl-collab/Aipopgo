@@ -108,7 +108,7 @@ export function Studio() {
         <div className="flex-1 overflow-y-auto p-5 scrollbar-none space-y-6">
           <div className="flex gap-4">
             <img 
-              src={currentUser?.avatarUrl} 
+              src={currentUser?.avatarUrl || undefined} 
               alt="Avatar" 
               className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm mt-1"
             />
@@ -133,14 +133,14 @@ export function Studio() {
               >
                 {isVideo ? (
                   <video 
-                    src={mediaUrl} 
+                    src={mediaUrl || undefined} 
                     className="w-full h-full object-cover" 
                     controls
                     style={{ filter: currentFilterCss }}
                   />
                 ) : (
                   <img 
-                    src={mediaUrl} 
+                    src={mediaUrl || undefined} 
                     alt="Preview" 
                     className="w-full h-full object-cover" 
                     style={{ filter: currentFilterCss }}
@@ -221,7 +221,7 @@ export function Studio() {
                       "w-16 h-16 rounded-2xl overflow-hidden border-2 transition-colors",
                       selectedFilter === filter.name ? "border-pink-400 shadow-md" : "border-transparent"
                     )}>
-                       <img src={mediaUrl} alt="" className="w-full h-full object-cover" style={{ filter: filter.css }} />
+                       <img src={mediaUrl || undefined} alt="" className="w-full h-full object-cover" style={{ filter: filter.css }} />
                     </div>
                     <span className="text-[10px] font-bold text-slate-600">{filter.name}</span>
                   </button>

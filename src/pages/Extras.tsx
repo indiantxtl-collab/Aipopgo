@@ -52,8 +52,8 @@ export function Notifications() {
                   className={`glass-card p-4 rounded-3xl flex items-center gap-4 shadow-sm border border-white ${n.isRead ? '' : 'bg-pink-50/50 shadow-pink-100/50 relative overflow-hidden'}`}
                 >
                   {!n.isRead && <div className="absolute left-0 top-0 bottom-0 w-1 bg-pink-400 rounded-l-3xl"></div>}
-                  <div className="relative">
-                     <img src={actor?.avatarUrl || ''} className="w-12 h-12 rounded-full border-2 border-white shadow-sm object-cover" />
+                  <div className="relative cursor-pointer" onClick={() => actor && navigate(`/u/${actor.username}`)}>
+                     <img src={actor?.avatarUrl || undefined} className="w-12 h-12 rounded-full border-2 border-white shadow-sm object-cover" />
                      {actor?.isVerified && (
                         <div className="absolute -bottom-1 -right-1 bg-white rounded-full">
                            <VerifiedBadge isGolden={actor.id === '100000'} size={14} />
@@ -171,10 +171,11 @@ export function Search() {
                      exit={{ opacity: 0, scale: 0.95 }}
                      transition={{ delay: i * 0.03 }}
                      key={u.id} 
+                     onClick={() => navigate(`/u/${u.username}`)}
                      className="flex items-center gap-4 glass-card p-4 rounded-3xl shadow-sm border border-white cursor-pointer hover:shadow-md transition-shadow group"
                   >
                      <div className="relative">
-                        <img src={u.avatarUrl} className="w-14 h-14 object-cover rounded-full border-2 border-white shadow-sm group-hover:scale-105 transition-transform" />
+                        <img src={u.avatarUrl || undefined} className="w-14 h-14 object-cover rounded-full border-2 border-white shadow-sm group-hover:scale-105 transition-transform" />
                         {u.isVerified && (
                            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
                               <VerifiedBadge isGolden={u.id === '100000'} size={14} />

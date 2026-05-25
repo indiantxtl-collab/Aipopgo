@@ -29,7 +29,6 @@ function AppRoutes() {
 
       <Route element={<AppLayout />}>
         <Route path="/u/:username" element={<Profile />} />
-        <Route path="/profile" element={<Profile />} />
         <Route path="/u/:username/followers" element={<FollowStats type="followers" />} />
         <Route path="/u/:username/following" element={<FollowStats type="following" />} />
 
@@ -41,7 +40,6 @@ function AppRoutes() {
           <Route path="/messages" element={<MessagesList />} />
           <Route path="/messages/new/:userId" element={<MessageThread />} />
           <Route path="/settings/*" element={<Settings />} />
-          <Route path="/profile" element={<Profile />} />
           
           {/* Creator Pages Output */}
           <Route element={<CreatorRoute />}>

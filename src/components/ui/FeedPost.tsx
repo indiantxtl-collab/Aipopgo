@@ -84,7 +84,7 @@ export function FeedPost({ post, author }: { post: Post; author?: User }) {
       <div className="flex items-center justify-between mb-4 relative z-10">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/u/${author.username}`)}>
           <div className="relative">
-            <img src={author.avatarUrl} alt={author.name} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm" />
+            <img src={author.avatarUrl || undefined} alt={author.name} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm" />
             {author.role === 'creator' && (
               <div className="absolute -bottom-1 -right-1 bg-gradient-to-tr from-pink-500 to-yellow-400 p-1 rounded-full border border-white shadow-sm">
                 <Sparkles className="w-2.5 h-2.5 text-white" />
@@ -157,9 +157,9 @@ export function FeedPost({ post, author }: { post: Post; author?: User }) {
           onDoubleClick={handleDoubleTap}
         >
           {post.mediaType === 'video' ? (
-             <video src={post.mediaUrl} controls className="w-full h-full object-cover" style={{ filter: post.filterName !== 'Normal' ? 'contrast(1.1) saturate(1.2)' : 'none' }} />
+             <video src={post.mediaUrl || undefined} controls className="w-full h-full object-cover" style={{ filter: post.filterName !== 'Normal' ? 'contrast(1.1) saturate(1.2)' : 'none' }} />
           ) : (
-             <img src={post.mediaUrl} alt="Post media" loading="lazy" className="w-full h-full object-cover select-none" style={{ filter: post.filterName !== 'Normal' ? 'contrast(1.1) saturate(1.2)' : 'none' }} />
+             <img src={post.mediaUrl || undefined} alt="Post media" loading="lazy" className="w-full h-full object-cover select-none" style={{ filter: post.filterName !== 'Normal' ? 'contrast(1.1) saturate(1.2)' : 'none' }} />
           )}
           
           <AnimatePresence>

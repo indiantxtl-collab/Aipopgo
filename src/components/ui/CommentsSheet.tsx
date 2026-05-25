@@ -7,12 +7,14 @@ import { useAuth } from '../../context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { VerifiedBadge } from './VerifiedBadge';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 export function CommentsSheet({ post, onClose }: { post: Post; onClose: () => void }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [content, setContent] = useState('');
   const { currentUser, systemData } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.getComments(post.id).then(c => {
@@ -104,10 +106,15 @@ export function CommentsSheet({ post, onClose }: { post: Post; onClose: () => vo
                     key={c.id} 
                     className="flex gap-3 relative group"
                   >
-                    <img src={author.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-100 mt-1 shadow-sm" />
+                    <img 
+                      src={author.avatarUrl || undefined} 
+                      alt="" 
+                      className="w-10 h-10 rounded-full object-cover border border-slate-100 mt-1 shadow-sm cursor-pointer" 
+                      onClick={() => { onClose(); navigate(`/u/${author.username}`); }}
+                    />
                     <div className="flex-1">
                       <div className="flex justify-between items-baseline">
-                         <div className="flex items-center gap-1.5">
+                         <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => { onClose(); navigate(`/u/${author.username}`); }}>
                            <span className="font-bold text-[14px] text-slate-900">{author.username}</span>
                            {author.isVerified && <VerifiedBadge isGolden={author.id === '100000'} size={13} />}
                          </div>

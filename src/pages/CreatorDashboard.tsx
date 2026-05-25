@@ -37,7 +37,7 @@ function DashboardMenu() {
           </div>
           <div className="relative">
             <div className="absolute inset-0 rounded-full border-2 border-pink-300 animate-pulse-glow" style={{ transform: 'scale(1.15)' }}></div>
-            <img src={currentUser?.avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-md relative z-10" />
+            <img src={currentUser?.avatarUrl || undefined} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-md relative z-10" />
           </div>
           <div>
             <h1 className="text-[22px] font-display font-black text-slate-900 tracking-tight flex items-center gap-1.5">

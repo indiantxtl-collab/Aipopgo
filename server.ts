@@ -2,15 +2,16 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import fileUpload from 'express-fileupload';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 
 interface User {
-  id: string;
+  id: string; 
   name: string;
   username: string;
   email: string;
-  password?: string;
-  avatarUrl?: string | null;
-  coverUrl?: string | null;
+  avatarUrl?: string;
+  coverUrl?: string;
   bio?: string;
   isVerified: boolean;
   mixChannelId?: string;
@@ -20,12 +21,11 @@ interface User {
   followingCount: number;
   isPrivate?: boolean;
 }
-
 interface Post {
   id: string;
   authorId: string;
   caption: string;
-  mediaUrl?: string | null;
+  mediaUrl?: string;
   mediaType?: 'image' | 'video';
   filterName?: string;
   visibility: 'public' | 'followers' | 'private';
@@ -37,14 +37,12 @@ interface Post {
   commentsCount: number;
   viewsCount: number;
 }
-
 interface Vote {
   id: string;
   voterId: string;
   targetUserId: string;
   timestamp: string;
 }
-
 interface Comment {
   id: string;
   postId: string;
@@ -52,13 +50,11 @@ interface Comment {
   content: string;
   createdAt: string;
 }
-
 interface Follow {
   followerId: string;
   followingId: string;
   timestamp: string;
 }
-
 interface FollowRequest {
   id: string;
   requesterId: string;
@@ -66,7 +62,6 @@ interface FollowRequest {
   status: 'pending' | 'accepted' | 'rejected';
   timestamp: string;
 }
-
 interface Notification {
   id: string;
   userId: string;
@@ -77,7 +72,6 @@ interface Notification {
   timestamp: string;
   link?: string;
 }
-
 interface Message {
   id: string;
   conversationId: string;
@@ -85,9 +79,6 @@ interface Message {
   text: string;
   timestamp: string;
 }
-type UserSettings = Record<string, Record<string, boolean | string>>;
-
-const __dirname = path.resolve();
 
 export const AI_USER_ID = '100000';
 
@@ -97,17 +88,15 @@ const initialUsers: User[] = [
     name: 'Ai',
     username: 'aipopgirl',
     email: 'aipopgirl@demo.com',
-    password: 'SuperSecureAiAdmin2026!',
-    avatarUrl: null,
-    coverUrl: null,
-    bio: `Hi, I'm Ai — a cheerful dreamer aiming to become someone who can support and brighten other people's lives. I love baseball, comedians, games, studying, self-improvement, and sharing positive energy.`,
+    avatarUrl: '',
+    coverUrl: '',
+    bio: 'Hi, I\'m Ai — a cheerful dreamer aiming to become someone who can support and brighten other people\'s lives. I love baseball, comedians, games, studying, self-improvement, and sharing positive energy. Every cheer, every vote, and every kind message helps me move one step closer to my goal. Please support me on this journey!',
     isVerified: true,
     mixChannelId: '18641424',
     role: 'creator',
     joinDate: new Date('2024-01-01').toISOString(),
     followersCount: 12400,
     followingCount: 42,
-    isPrivate: false,
   },
 ];
 
@@ -115,14 +104,14 @@ const initialPosts: Post[] = [
   {
     id: 'p1',
     authorId: AI_USER_ID,
-    caption: 'Thank you everyone for the support 💛',
-    mediaUrl: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?q=80&w=1200',
+    caption: 'Thank you everyone for the continued support! 💛 Keep voting daily so we can reach our 10,000 goal! ✨ #AiPopCute #ThankYou',
+    mediaUrl: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?q=80&w=800',
     mediaType: 'image',
     visibility: 'public',
     allowComments: true,
     allowDownloads: false,
     isPinned: true,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
     likesCount: 1450,
     commentsCount: 132,
     viewsCount: 15400,
@@ -130,18 +119,18 @@ const initialPosts: Post[] = [
   {
     id: 'p2',
     authorId: AI_USER_ID,
-    caption: 'Studying hard today 📚',
-    mediaUrl: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?q=80&w=1200',
+    caption: 'Had a great time studying today! Feeling productive. 📚 Hope everyone is having a wonderful week!',
+    mediaUrl: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?q=80&w=800',
     mediaType: 'image',
     visibility: 'public',
     allowComments: true,
     allowDownloads: true,
     isPinned: false,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
     likesCount: 890,
     commentsCount: 45,
     viewsCount: 5200,
-  },
+  }
 ];
 
 let db = {
@@ -155,538 +144,293 @@ let db = {
   messages: [] as Message[],
   progressGoal: 10000,
   totalVotes: 3450,
-  userSettings: {} as UserSettings,
 };
 
+// Generate some sample notifications and comments
 db.notifications.push({
-  id: 'n1',
-  userId: AI_USER_ID,
-  actorId: '100001',
-  type: 'vote',
-  message: 'cheered for you!',
-  isRead: false,
-  timestamp: new Date().toISOString(),
+  id: 'n1', userId: AI_USER_ID, actorId: '100001', type: 'vote', message: 'cheered for you!', isRead: false, timestamp: new Date().toISOString()
 });
 
-async function startServer() {
-  const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+export const app = express();
+const PORT = process.env.PORT || 3000;
 
-  app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    if (req.method === 'OPTIONS') {
-      return res.status(204).end();
-    }
-    return next();
-  });
+// Use fileUpload for handling parsing
+app.use(fileUpload({
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
+  abortOnLimit: true
+}));
+app.use(express.json({ limit: '50mb' }));
 
-  app.use(
-    fileUpload({
-      limits: {
-        fileSize: 50 * 1024 * 1024,
-      },
-      abortOnLimit: true,
-      createParentPath: true,
-    }),
-  );
+// API Routes
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ extended: true }));
-
-  app.get('/api/health', (_, res) => {
-    return res.json({
-      status: 'ok',
-    });
-  });
-
-  app.get('/api/data', (_, res) => {
-    const users = db.users.map((u) => ({
-      ...u,
-      password: undefined,
-    }));
-
-    return res.json({
-      ...db,
-      users,
-    });
-  });
+  app.get('/api/data', (req, res) => res.json(db));
 
   app.post('/api/login', (req, res) => {
-    try {
-      const { identifier, password } = req.body;
-
-      if (!identifier || !password) {
-        return res.status(400).json({
-          error: 'Email/username and password required.',
-        });
-      }
-
-      const user = db.users.find(
-        (u) =>
-          u.email.toLowerCase() === String(identifier).toLowerCase() ||
-          u.username.toLowerCase() === String(identifier).toLowerCase(),
-      );
-
-      if (!user) {
-        return res.status(404).json({
-          error: 'User not found.',
-        });
-      }
-
-      if (user.password !== password) {
-        return res.status(401).json({
-          error: 'Invalid password.',
-        });
-      }
-
-      return res.json({
-        user: {
-          ...user,
-          password: undefined,
-        },
-      });
-    } catch (error) {
-      return res.status(500).json({
-        error: 'Login failed.',
-      });
+    const { identifier, password } = req.body;
+    if (identifier === 'aipopgirl@demo.com' && password === 'SuperSecureAiAdmin2026!') {
+      const creator = db.users.find(u => u.email === 'aipopgirl@demo.com');
+      return res.json({ user: creator });
     }
+    const user = db.users.find(u => u.email === identifier || u.username === identifier);
+    if (user && password?.length > 0) return res.json({ user });
+    res.status(401).json({ error: 'Invalid username or password.' });
   });
 
   app.post('/api/signup', (req, res) => {
-    try {
-      const { name, username, email, password } = req.body;
+    const { name, username, email, password } = req.body;
+    if (db.users.find(u => u.username === username)) return res.status(400).json({ error: 'Username taken' });
+    if (db.users.find(u => u.email === email)) return res.status(400).json({ error: 'Email registered' });
 
-      if (!name || !username || !email || !password) {
-        return res.status(400).json({
-          error: 'All fields are required.',
-        });
-      }
-
-      const cleanUsername = String(username)
-        .trim()
-        .toLowerCase();
-
-      const cleanEmail = String(email)
-        .trim()
-        .toLowerCase();
-
-      const existingUsername = db.users.find(
-        (u) => u.username.toLowerCase() === cleanUsername,
-      );
-
-      if (existingUsername) {
-        return res.status(400).json({
-          error: 'Username already taken.',
-        });
-      }
-
-      const existingEmail = db.users.find(
-        (u) => u.email.toLowerCase() === cleanEmail,
-      );
-
-      if (existingEmail) {
-        return res.status(400).json({
-          error: 'Email already registered.',
-        });
-      }
-
-      const newUser: User = {
-        id: `${100000 + db.users.length + 1}`,
-        name: String(name).trim(),
-        username: cleanUsername,
-        email: cleanEmail,
-        password,
-        isVerified: false,
-        role: 'user',
-        joinDate: new Date().toISOString(),
-        followersCount: 0,
-        followingCount: 0,
-        avatarUrl: `https://api.dicebear.com/7.x/notionists/svg?seed=${cleanUsername}`,
-        coverUrl: null,
-        bio: 'Ready to support Ai ✨',
-        isPrivate: false,
-      };
-
-      db.users.push(newUser);
-
-      return res.json({
-        user: {
-          ...newUser,
-          password: undefined,
-        },
-      });
-    } catch (error) {
-      return res.status(500).json({
-        error: 'Signup failed.',
-      });
-    }
+    const newUser: User = {
+      id: (100000 + db.users.length + 1).toString(),
+      name, username, email,
+      isVerified: true, role: 'user', joinDate: new Date().toISOString(),
+      followersCount: 0, followingCount: 0,
+      avatarUrl: `https://api.dicebear.com/7.x/notionists/svg?seed=${username}&backgroundColor=fbbf24`,
+      bio: 'Ready to support Ai! ✨'
+    };
+    db.users.push(newUser);
+    res.json({ user: newUser });
   });
 
   app.post('/api/upload', (req, res) => {
-    try {
-      if (req.files && req.files.file) {
-        const file = req.files.file as fileUpload.UploadedFile;
-
-        const base64 = file.data.toString('base64');
-
-        const mediaUrl = `data:${file.mimetype};base64,${base64}`;
-
-        return res.json({
-          url: mediaUrl,
-        });
-      }
-
-      if (req.body?.base64) {
-        return res.json({
-          url: req.body.base64,
-        });
-      }
-
-      return res.status(400).json({
-        error: 'No file uploaded.',
-      });
-    } catch (error) {
-      return res.status(500).json({
-        error: 'Upload failed.',
-      });
+    // Handling a real file upload via form-data (express-fileupload exposes req.files)
+    if (req.files && req.files.file) {
+      const file = req.files.file as any;
+      // Convert directly into base64 to store in memory for demo!
+      const base64 = file.data.toString('base64');
+      const mimetype = file.mimetype;
+      const mediaUrl = `data:${mimetype};base64,${base64}`;
+      return res.json({ url: mediaUrl });
     }
+    // Alternatively handling base64 in body directly
+    if (req.body && req.body.base64) {
+       return res.json({ url: req.body.base64 });
+    }
+    return res.status(400).json({ error: 'No file uploaded' });
   });
 
   app.post('/api/vote', (req, res) => {
-    try {
-      const { voterId } = req.body;
-
-      if (!voterId) {
-        return res.status(400).json({
-          error: 'Missing voter id.',
-        });
-      }
-
-      const today = new Date().toISOString().split('T')[0];
-
-      const existing = db.votes.find(
-        (v) =>
-          v.voterId === voterId &&
-          v.timestamp.startsWith(today),
-      );
-
-      if (existing) {
-        return res.status(400).json({
-          error: 'Already voted today.',
-        });
-      }
-
-      db.votes.push({
-        id: `v_${Date.now()}`,
-        voterId,
-        targetUserId: AI_USER_ID,
-        timestamp: new Date().toISOString(),
-      });
-
-      db.totalVotes += 1;
-
-      return res.json({
-        success: true,
-        totalVotes: db.totalVotes,
-      });
-    } catch {
-      return res.status(500).json({
-        error: 'Vote failed.',
-      });
-    }
-  });
-
-  app.post('/api/users/:followingId/follow', (req, res) => {
-    const { followerId } = req.body;
-    const followingId = req.params.followingId;
-    const follower = db.users.find((u) => u.id === followerId);
-    const following = db.users.find((u) => u.id === followingId);
-    if (!follower || !following) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-    const exists = db.follows.find((f) => f.followerId === followerId && f.followingId === followingId);
-    if (exists) return res.json({ success: true });
-    db.follows.push({ followerId, followingId, timestamp: new Date().toISOString() });
-    following.followersCount += 1;
-    follower.followingCount += 1;
-    return res.json({ success: true });
-  });
-
-  app.post('/api/users/:followingId/unfollow', (req, res) => {
-    const { followerId } = req.body;
-    const followingId = req.params.followingId;
-    const idx = db.follows.findIndex((f) => f.followerId === followerId && f.followingId === followingId);
-    if (idx === -1) return res.json({ success: true });
-    db.follows.splice(idx, 1);
-    const follower = db.users.find((u) => u.id === followerId);
-    const following = db.users.find((u) => u.id === followingId);
-    if (following && following.followersCount > 0) following.followersCount -= 1;
-    if (follower && follower.followingCount > 0) follower.followingCount -= 1;
-    return res.json({ success: true });
-  });
-
-  app.get('/api/users/:id', (req, res) => {
-    const user = db.users.find((u) => u.id === req.params.id);
-
-    if (!user) {
-      return res.status(404).json({
-        error: 'User not found.',
-      });
-    }
-
-    return res.json({
-      user: {
-        ...user,
-        password: undefined,
-      },
-    });
-  });
-
-  app.get('/api/users/username/:username', (req, res) => {
-    const user = db.users.find(
-      (u) =>
-        u.username.toLowerCase() ===
-        req.params.username.toLowerCase(),
-    );
-
-    if (!user) {
-      return res.status(404).json({
-        error: 'User not found.',
-      });
-    }
-
-    return res.json({
-      user: {
-        ...user,
-        password: undefined,
-      },
-    });
-  });
-
-  app.put('/api/users/:id/profile', (req, res) => {
-    const user = db.users.find((u) => u.id === req.params.id);
-    if (!user) return res.status(404).json({ error: 'User not found.' });
-    const { name, bio, avatarUrl, coverUrl } = req.body || {};
-    if (typeof name === 'string' && name.trim()) user.name = name.trim();
-    if (typeof bio === 'string') user.bio = bio.trim();
-    if (typeof avatarUrl === 'string') user.avatarUrl = avatarUrl.trim() || null;
-    if (typeof coverUrl === 'string') user.coverUrl = coverUrl.trim() || null;
-    return res.json({ user: { ...user, password: undefined } });
-  });
-
-  app.put('/api/users/:id/settings', (req, res) => {
-    const user = db.users.find((u) => u.id === req.params.id);
-    if (!user) return res.status(404).json({ error: 'User not found.' });
-    const { section, values } = req.body || {};
-    if (!section || typeof values !== 'object') return res.status(400).json({ error: 'Invalid settings payload.' });
-    if (!db.userSettings[user.id]) db.userSettings[user.id] = {};
-    db.userSettings[user.id][section] = { ...(db.userSettings[user.id][section] || {}), ...values };
-    return res.json({ success: true, settings: db.userSettings[user.id] });
-  });
-
-  app.get('/api/posts', (_, res) => {
-    const posts = db.posts.map((post) => {
-      const author = db.users.find(
-        (u) => u.id === post.authorId,
-      );
-
-      return {
-        ...post,
-        author,
-      };
-    });
-
-    return res.json(posts);
+    const { voterId } = req.body;
+    const today = new Date().toISOString().split('T')[0];
+    const existing = db.votes.find(v => v.voterId === voterId && v.timestamp.startsWith(today));
+    
+    if (existing) return res.status(400).json({ error: 'Already voted today' });
+    db.votes.push({ id: `v_${Date.now()}`, voterId, targetUserId: AI_USER_ID, timestamp: new Date().toISOString() });
+    db.totalVotes += 1;
+    res.json({ status: 'success', totalVotes: db.totalVotes });
   });
 
   app.post('/api/posts', (req, res) => {
-    try {
-      const post: Post = {
-        ...req.body,
-        id: `p_${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        likesCount: 0,
-        commentsCount: 0,
-        viewsCount: 0,
-      };
-
-      db.posts.unshift(post);
-
-      return res.json({
-        post,
-      });
-    } catch {
-      return res.status(500).json({
-        error: 'Create post failed.',
-      });
+    const post = req.body;
+    db.posts.unshift(post);
+    res.json({ post });
+  });
+  
+  app.delete('/api/posts/:id', (req, res) => {
+    const index = db.posts.findIndex(p => p.id === req.params.id);
+    if (index !== -1) {
+      db.posts.splice(index, 1);
+      return res.json({ status: 'success' });
     }
+    res.status(404).json({ error: 'Not found' });
   });
 
   app.put('/api/posts/:id', (req, res) => {
-    const post = db.posts.find(
-      (p) => p.id === req.params.id,
-    );
-
-    if (!post) {
-      return res.status(404).json({
-        error: 'Post not found.',
-      });
-    }
-
-    post.caption = req.body.caption || post.caption;
-
-    return res.json({
-      post,
-    });
+    const post = db.posts.find(p => p.id === req.params.id);
+    if (!post) return res.status(404).json({ error: 'Not found' });
+    if (req.body.caption) post.caption = req.body.caption;
+    res.json({ post });
   });
-
-  app.delete('/api/posts/:id', (req, res) => {
-    const index = db.posts.findIndex(
-      (p) => p.id === req.params.id,
-    );
-
-    if (index === -1) {
-      return res.status(404).json({
-        error: 'Post not found.',
-      });
-    }
-
-    db.posts.splice(index, 1);
-
-    return res.json({
-      success: true,
-    });
-  });
-
+  
   app.post('/api/posts/:id/like', (req, res) => {
-    const post = db.posts.find(
-      (p) => p.id === req.params.id,
-    );
-
-    if (!post) {
-      return res.status(404).json({
-        error: 'Post not found.',
-      });
+    const post = db.posts.find(p => p.id === req.params.id);
+    if (post) {
+      post.likesCount += 1;
+      return res.json({ likesCount: post.likesCount });
     }
-
-    post.likesCount += 1;
-
-    return res.json({
-      likesCount: post.likesCount,
-    });
+    res.status(404).json({ error: 'Not found' });
   });
 
   app.get('/api/posts/:id/comments', (req, res) => {
-    const comments = db.comments.filter(
-      (c) => c.postId === req.params.id,
-    );
-
-    return res.json(comments);
+    const comments = db.comments.filter(c => c.postId === req.params.id);
+    res.json(comments);
   });
 
   app.post('/api/posts/:id/comments', (req, res) => {
-    const post = db.posts.find(
-      (p) => p.id === req.params.id,
-    );
-
-    if (!post) {
-      return res.status(404).json({
-        error: 'Post not found.',
-      });
-    }
-
+    const post = db.posts.find(p => p.id === req.params.id);
+    if (!post) return res.status(404).json({error: 'Not found'});
+    
+    const { authorId, content } = req.body;
     const comment: Comment = {
       id: `c_${Date.now()}`,
       postId: req.params.id,
-      authorId: req.body.authorId,
-      content: req.body.content,
-      createdAt: new Date().toISOString(),
+      authorId, content,
+      createdAt: new Date().toISOString()
     };
-
     db.comments.push(comment);
-
     post.commentsCount += 1;
+    res.json({ comment });
+  });
 
-    return res.json({
-      comment,
-    });
+  app.post('/api/users/:id/follow', (req, res) => {
+    const { followerId } = req.body;
+    const followingId = req.params.id;
+    const existingFollow = db.follows.find(f => f.followerId === followerId && f.followingId === followingId);
+    if(existingFollow) {
+      return res.status(400).json({ error: 'Already following' });
+    }
+    
+    const target = db.users.find(u => u.id === followingId);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+
+    if (target.isPrivate) {
+      const existingReq = db.followRequests.find(r => r.requesterId === followerId && r.targetId === followingId);
+      if (existingReq) return res.status(400).json({ error: 'Request already sent' });
+      const reqId = `fr_${Date.now()}`;
+      db.followRequests.push({ id: reqId, requesterId: followerId, targetId: followingId, status: 'pending', timestamp: new Date().toISOString() });
+      db.notifications.push({ id: `n_${Date.now()}`, userId: followingId, actorId: followerId, type: 'follow', message: 'requested to follow you.', isRead: false, timestamp: new Date().toISOString() });
+      return res.json({ status: 'requested' });
+    }
+
+    db.follows.push({ followerId, followingId, timestamp: new Date().toISOString() });
+    const follower = db.users.find(u => u.id === followerId);
+    if(target) target.followersCount += 1;
+    if(follower) follower.followingCount += 1;
+    db.notifications.push({ id: `n_${Date.now()}`, userId: followingId, actorId: followerId, type: 'follow', message: 'started following you.', isRead: false, timestamp: new Date().toISOString() });
+    
+    return res.json({ status: 'success' });
+  });
+
+  app.post('/api/users/:id/unfollow', (req, res) => {
+    const { followerId } = req.body;
+    const followingId = req.params.id;
+    const index = db.follows.findIndex(f => f.followerId === followerId && f.followingId === followingId);
+    if(index !== -1) {
+      db.follows.splice(index, 1);
+      const target = db.users.find(u => u.id === followingId);
+      const follower = db.users.find(u => u.id === followerId);
+      if (target && target.followersCount > 0) target.followersCount -= 1;
+      if (follower && follower.followingCount > 0) follower.followingCount -= 1;
+      return res.json({ status: 'success' });
+    }
+    const reqIndex = db.followRequests.findIndex(r => r.requesterId === followerId && r.targetId === followingId);
+    if (reqIndex !== -1) {
+      db.followRequests.splice(reqIndex, 1);
+      return res.json({ status: 'request_cancelled' });
+    }
+    return res.status(400).json({ error: 'Not following' });
+  });
+
+  app.post('/api/requests/:id/accept', (req, res) => {
+    const reqIndex = db.followRequests.findIndex(r => r.id === req.params.id);
+    if (reqIndex === -1) return res.status(404).json({ error: 'Request not found' });
+    const request = db.followRequests[reqIndex];
+    db.followRequests.splice(reqIndex, 1);
+    
+    // Check if already following just in case
+    const existingFollow = db.follows.find(f => f.followerId === request.requesterId && f.followingId === request.targetId);
+    if (!existingFollow) {
+      db.follows.push({ followerId: request.requesterId, followingId: request.targetId, timestamp: new Date().toISOString() });
+      const target = db.users.find(u => u.id === request.targetId);
+      const follower = db.users.find(u => u.id === request.requesterId);
+      if(target) target.followersCount += 1;
+      if(follower) follower.followingCount += 1;
+      db.notifications.push({ id: `n_${Date.now()}`, userId: request.requesterId, actorId: request.targetId, type: 'follow', message: 'accepted your follow request.', isRead: false, timestamp: new Date().toISOString() });
+    }
+    return res.json({ status: 'success' });
+  });
+
+  app.post('/api/requests/:id/reject', (req, res) => {
+    const reqIndex = db.followRequests.findIndex(r => r.id === req.params.id);
+    if (reqIndex === -1) return res.status(404).json({ error: 'Request not found' });
+    db.followRequests.splice(reqIndex, 1);
+    return res.json({ status: 'success' });
+  });
+
+  app.put('/api/users/:id/profile', (req, res) => {
+    const user = db.users.find(u => u.id === req.params.id);
+    if(!user) return res.status(404).json({error: 'Not found'});
+    const { name, bio, avatarUrl, coverUrl, isPrivate, settings } = req.body;
+    if(name !== undefined) user.name = name;
+    if(bio !== undefined) user.bio = bio;
+    if(avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+    if(coverUrl !== undefined) user.coverUrl = coverUrl;
+    if(isPrivate !== undefined) user.isPrivate = isPrivate;
+    if(settings !== undefined) user.settings = settings;
+    res.json({ user });
   });
 
   app.post('/api/messages', (req, res) => {
+    const { senderId, conversationId, text } = req.body;
     const msg: Message = {
-      id: `m_${Date.now()}`,
-      senderId: req.body.senderId,
-      conversationId: req.body.conversationId,
-      text: req.body.text,
-      timestamp: new Date().toISOString(),
+      id: `m_${Date.now()}`, senderId, conversationId, text, timestamp: new Date().toISOString()
     };
-
     db.messages.push(msg);
-
-    return res.json({
-      message: msg,
-    });
+    const io = req.app.get('io') as SocketIOServer;
+    if (io) {
+      // conversationId is "userA_userB". The receiver is the other one.
+      const [u1, u2] = conversationId.split('_');
+      const receiverId = u1 === senderId ? u2 : u1;
+      io.to(receiverId).emit('new_message', msg);
+    }
+    res.json({ message: msg });
   });
 
   app.get('/api/messages/:conversationId', (req, res) => {
-    const messages = db.messages.filter(
-      (m) =>
-        m.conversationId === req.params.conversationId,
-    );
-
-    return res.json(messages);
+    const m = db.messages.filter(m => m.conversationId === req.params.conversationId);
+    res.json(m);
   });
 
   app.get('/api/notifications/:userId', (req, res) => {
-    const notifications = db.notifications.filter(
-      (n) => n.userId === req.params.userId,
-    );
-
-    return res.json(notifications);
+    const n = db.notifications.filter(n => n.userId === req.params.userId);
+    res.json(n);
   });
-
+  
   app.post('/api/notifications/:userId/read', (req, res) => {
-    db.notifications
-      .filter((n) => n.userId === req.params.userId)
-      .forEach((n) => {
-        n.isRead = true;
-      });
+    db.notifications.filter(n => n.userId === req.params.userId).forEach(n => n.isRead = true);
+    res.json({ status: 'success' });
+  });
 
-    return res.json({
-      success: true,
+  const httpServer = http.createServer(app);
+  const io = new SocketIOServer(httpServer, {
+    cors: { origin: '*' }
+  });
+  app.set('io', io);
+
+  io.on('connection', (socket) => {
+    socket.on('join', (userId) => {
+      socket.join(userId);
+    });
+    
+    socket.on('typing', ({ senderId, receiverId }) => {
+      io.to(receiverId).emit('typing', { senderId });
+    });
+
+    socket.on('mark_seen', ({ messageId, receiverId }) => {
+      io.to(receiverId).emit('message_seen', { messageId });
     });
   });
 
-  app.use('/api/*', (req, res) => {
-    return res.status(404).json({
-      error: `API route not found: ${req.method} ${req.originalUrl}`,
-    });
-  });
-
+async function startViteServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-      },
-      appType: 'spa',
+      server: { middlewareMode: true },
+      appType: 'spa'
     });
-
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(__dirname, 'dist');
-
+    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-
-    app.get('*', (_, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on ${PORT}`);
-  });
+  httpServer.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
 }
 
-startServer();
+if (process.env.NODE_ENV !== 'production' || process.argv.includes('server.cjs')) {
+  startViteServer();
+}
+
+export default app;

@@ -8,7 +8,7 @@ import { Post } from '../types';
 import { Sparkles, Compass } from 'lucide-react';
 
 export function Landing() {
-  const { systemData, isLoading, hasBootError, refreshSystemData } = useAuth();
+  const { systemData } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export function Landing() {
     }
   }, [systemData]);
 
-  if (isLoading) {
+  if (!systemData) {
     return (
       <div className="flex justify-center items-center h-screen pb-20 bg-slate-50 relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 w-[40rem] h-[40rem] bg-pink-100/50 rounded-full blur-[80px] -translate-x-1/2 -translate-y-1/2" />
@@ -30,23 +30,6 @@ export function Landing() {
           transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
           className="w-12 h-12 border-4 border-pink-400 border-t-transparent rounded-full relative z-10 shadow-[0_0_15px_rgba(244,114,182,0.5)]"
         />
-      </div>
-    );
-  }
-  if (!systemData) {
-    return (
-      <div className="flex justify-center items-center h-screen pb-20 bg-slate-50 relative overflow-hidden">
-        <div className="text-center space-y-4 px-6">
-          <p className="font-bold text-slate-700">
-            {hasBootError ? 'Unable to connect to server.' : 'No data available.'}
-          </p>
-          <button
-            onClick={refreshSystemData}
-            className="px-6 py-2 rounded-full bg-slate-900 text-white font-bold"
-          >
-            Retry
-          </button>
-        </div>
       </div>
     );
   }

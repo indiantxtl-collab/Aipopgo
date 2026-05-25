@@ -1,325 +1,131 @@
-import {
-  DatabaseSchema,
-  User,
-  Post,
-  Comment,
-  Notification,
-  Message,
-} from '../types';
+import { DatabaseSchema, User, Post, Comment, Notification, Message } from '../types';
 
 export const AI_USER_ID = '100000';
 
-async function safeFetch<T>(
-  url: string,
-  options?: RequestInit,
-): Promise<T> {
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options?.headers || {}),
-      },
-    });
-
-    const raw = await response.text();
-    const contentType =
-      response.headers.get('content-type') || '';
-    let data: any = null;
-    if (raw) {
-      if (contentType.includes('application/json')) {
-        try {
-          data = JSON.parse(raw);
-        } catch {
-          throw new Error('Invalid JSON response from server');
-        }
-      } else {
-        try {
-          data = JSON.parse(raw);
-        } catch {
-          throw new Error(
-            `Invalid server response (expected JSON, got ${contentType || 'unknown'})`,
-          );
-        }
-      }
-    }
-
-    if (!response.ok) {
-      throw new Error(
-        data?.error ||
-          `Request failed (${response.status})`,
-      );
-    }
-
-    return (data || {}) as T;
-  } catch (error: any) {
-    console.error(`API ERROR (${url})`, error);
-
-    return {
-      error:
-        error?.message ||
-        'Network error. Backend may be offline.',
-    } as T;
-  }
-}
-
 export const api = {
-  getUserByUsername: async (
-    username: string,
-  ): Promise<{ user?: User; error?: string }> => {
-    return safeFetch(
-      `/api/users/username/${encodeURIComponent(username)}`,
-    );
+  getSystemData: async (): Promise<DatabaseSchema> => {
+    const res = await fetch('/api/data');
+    return res.json();
   },
-  getSystemData: async (): Promise<any> => {
-    return safeFetch<DatabaseSchema | any>(
-      '/api/data',
-    );
-  },
-
-  login: async (
-    identifier: string,
-    password: string,
-  ): Promise<{ user?: User; error?: string }> => {
-    return safeFetch('/api/login', {
+  login: async (identifier: string, password: string): Promise<{ user?: User, error?: string }> => {
+    const res = await fetch('/api/login', {
       method: 'POST',
-      body: JSON.stringify({
-        identifier,
-        password,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password })
     });
+    return res.json();
   },
-
-  signup: async (
-    data: any,
-  ): Promise<{ user?: User; error?: string }> => {
-    return safeFetch('/api/signup', {
+  signup: async (data: any): Promise<{ user?: User, error?: string }> => {
+    const res = await fetch('/api/signup', {
       method: 'POST',
-      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
     });
+    return res.json();
   },
-
-  uploadFile: async (
-    file: File,
-  ): Promise<{ url?: string; error?: string }> => {
-    try {
-      const formData = new FormData();
-
-      formData.append('file', file);
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error || 'Upload failed',
-        );
-      }
-
-      return data;
-    } catch (error: any) {
-      console.error(error);
-
-      return {
-        error:
-          error?.message ||
-          'Upload failed',
-      };
-    }
-  },
-
-  vote: async (
-    voterId: string,
-  ): Promise<{
-    totalVotes?: number;
-    error?: string;
-  }> => {
-    return safeFetch('/api/vote', {
+  uploadFile: async (file: File): Promise<{ url?: string; error?: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('/api/upload', {
       method: 'POST',
-      body: JSON.stringify({
-        voterId,
-      }),
+      body: formData
     });
+    return res.json();
   },
-
-  createPost: async (
-    post: Post,
-  ): Promise<any> => {
-    return safeFetch('/api/posts', {
+  vote: async (voterId: string): Promise<{ totalVotes?: number, error?: string }> => {
+    const res = await fetch('/api/vote', {
       method: 'POST',
-      body: JSON.stringify(post),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voterId })
     });
+    return res.json();
   },
-
-  deletePost: async (
-    id: string,
-  ): Promise<any> => {
-    return safeFetch(`/api/posts/${id}`, {
-      method: 'DELETE',
+  createPost: async (post: Post): Promise<{ post: Post }> => {
+    const res = await fetch('/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(post)
     });
+    return res.json();
   },
-
-  updatePost: async (
-    id: string,
-    updates: Partial<Post>,
-  ): Promise<any> => {
-    return safeFetch(`/api/posts/${id}`, {
+  deletePost: async (id: string): Promise<any> => {
+    const res = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+    return res.json();
+  },
+  updatePost: async (id: string, updates: Partial<Post>): Promise<{ post: Post }> => {
+    const res = await fetch(`/api/posts/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(updates),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
     });
+    return res.json();
   },
-
-  likePost: async (
-    id: string,
-  ): Promise<any> => {
-    return safeFetch(`/api/posts/${id}/like`, {
+  likePost: async (id: string): Promise<{ likesCount: number }> => {
+    const res = await fetch(`/api/posts/${id}/like`, { method: 'POST' });
+    return res.json();
+  },
+  getComments: async (postId: string): Promise<Comment[]> => {
+    const res = await fetch(`/api/posts/${postId}/comments`);
+    return res.json();
+  },
+  addComment: async (postId: string, authorId: string, content: string): Promise<{ comment: Comment }> => {
+    const res = await fetch(`/api/posts/${postId}/comments`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authorId, content })
     });
+    return res.json();
   },
-
-  getComments: async (
-    postId: string,
-  ): Promise<any> => {
-    return safeFetch(
-      `/api/posts/${postId}/comments`,
-    );
+  followUser: async (followingId: string, followerId: string): Promise<any> => {
+    const res = await fetch(`/api/users/${followingId}/follow`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ followerId })
+    });
+    return res.json();
   },
-
-  addComment: async (
-    postId: string,
-    authorId: string,
-    content: string,
-  ): Promise<any> => {
-    return safeFetch(
-      `/api/posts/${postId}/comments`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          authorId,
-          content,
-        }),
-      },
-    );
+  unfollowUser: async (followingId: string, followerId: string): Promise<any> => {
+    const res = await fetch(`/api/users/${followingId}/unfollow`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ followerId })
+    });
+    return res.json();
   },
-
-  followUser: async (
-    followingId: string,
-    followerId: string,
-  ): Promise<any> => {
-    return safeFetch(
-      `/api/users/${followingId}/follow`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          followerId,
-        }),
-      },
-    );
+  acceptFollowRequest: async (requestId: string): Promise<any> => {
+    const res = await fetch(`/api/requests/${requestId}/accept`, { method: 'POST' });
+    return res.json();
   },
-
-  unfollowUser: async (
-    followingId: string,
-    followerId: string,
-  ): Promise<any> => {
-    return safeFetch(
-      `/api/users/${followingId}/unfollow`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          followerId,
-        }),
-      },
-    );
+  rejectFollowRequest: async (requestId: string): Promise<any> => {
+    const res = await fetch(`/api/requests/${requestId}/reject`, { method: 'POST' });
+    return res.json();
   },
-
-  acceptFollowRequest: async (
-    requestId: string,
-  ): Promise<any> => {
-    return safeFetch(
-      `/api/requests/${requestId}/accept`,
-      {
-        method: 'POST',
-      },
-    );
-  },
-
-  rejectFollowRequest: async (
-    requestId: string,
-  ): Promise<any> => {
-    return safeFetch(
-      `/api/requests/${requestId}/reject`,
-      {
-        method: 'POST',
-      },
-    );
-  },
-
-  updateProfile: async (
-    userId: string,
-    data: Partial<User>,
-  ): Promise<any> => {
-    return safeFetch(
-      `/api/users/${userId}/profile`,
-      {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      },
-    );
-  },
-  updateSettings: async (
-    userId: string,
-    section: string,
-    values: Record<string, boolean | string>,
-  ): Promise<any> => {
-    return safeFetch(`/api/users/${userId}/settings`, {
+  updateProfile: async (userId: string, data: Partial<User>): Promise<{ user: User }> => {
+    const res = await fetch(`/api/users/${userId}/profile`, {
       method: 'PUT',
-      body: JSON.stringify({ section, values }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
     });
+    return res.json();
   },
-
-  getNotifications: async (
-    userId: string,
-  ): Promise<any> => {
-    return safeFetch(
-      `/api/notifications/${userId}`,
-    );
+  getNotifications: async (userId: string): Promise<Notification[]> => {
+    const res = await fetch(`/api/notifications/${userId}`);
+    return res.json();
   },
-
-  markReadNotifications: async (
-    userId: string,
-  ): Promise<any> => {
-    return safeFetch(
-      `/api/notifications/${userId}/read`,
-      {
-        method: 'POST',
-      },
-    );
+  markReadNotifications: async (userId: string) => {
+    const res = await fetch(`/api/notifications/${userId}/read`, { method: 'POST' });
+    return res.json();
   },
-
-  getMessages: async (
-    conversationId: string,
-  ): Promise<any> => {
-    return safeFetch(
-      `/api/messages/${conversationId}`,
-    );
+  getMessages: async (conversationId: string): Promise<Message[]> => {
+    const res = await fetch(`/api/messages/${conversationId}`);
+    return res.json();
   },
-
-  sendMessage: async (
-    senderId: string,
-    conversationId: string,
-    text: string,
-  ): Promise<any> => {
-    return safeFetch('/api/messages', {
+  sendMessage: async (senderId: string, conversationId: string, text: string): Promise<{ message: Message }> => {
+    const res = await fetch('/api/messages', {
       method: 'POST',
-      body: JSON.stringify({
-        senderId,
-        conversationId,
-        text,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senderId, conversationId, text })
     });
-  },
+    return res.json();
+  }
 };

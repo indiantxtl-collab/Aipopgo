@@ -9,7 +9,6 @@ import { motion, AnimatePresence } from 'motion/react';
 
 function TopNav() {
   const { currentUser } = useAuth();
-  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const unreadCount = 3; // mock

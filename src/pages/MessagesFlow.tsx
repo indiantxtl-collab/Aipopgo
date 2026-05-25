@@ -6,6 +6,10 @@ import { api } from '../lib/api';
 import { VerifiedBadge } from '../components/ui/VerifiedBadge';
 import { ChevronLeft, Send, Sparkles, Plus, Image as ImageIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import toast from 'react-hot-toast';
+import { io, Socket } from 'socket.io-client';
+
+let socket: Socket | null = null;
 
 export function MessagesList() {
   const { currentUser, systemData } = useAuth();
@@ -94,13 +98,42 @@ export function MessageThread() {
 
   const conversationId = [currentUser.id, userId].sort().join('_');
 
+  const [isTyping, setIsTyping] = useState(false);
+
+  useEffect(() => {
+    if (!socket) {
+      socket = io({
+        transports: ['polling', 'websocket'],
+        reconnectionDelayMax: 10000,
+      });
+      socket.on('connect_error', (err) => {
+        console.warn('Socket connection error:', err);
+      });
+      socket.emit('join', currentUser.id);
+    }
+    const handleNew = (msg: any) => {
+       if (msg.conversationId === conversationId) {
+          setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+       }
+    };
+    const handleTyping = (data: { senderId: string }) => {
+       if (data.senderId === userId) {
+          setIsTyping(true);
+          setTimeout(() => setIsTyping(false), 2000);
+       }
+    };
+    socket.on('new_message', handleNew);
+    socket.on('typing', handleTyping);
+
+    return () => {
+       socket?.off('new_message', handleNew);
+       socket?.off('typing', handleTyping);
+    };
+  }, [currentUser.id, conversationId, userId]);
+
   useEffect(() => {
     api.getMessages(conversationId).then(setMessages);
-    const itv = setInterval(() => {
-      api.getMessages(conversationId).then(setMessages);
-    }, 5000);
-    return () => clearInterval(itv);
-  }, [conversationId]);
+  }, [conversationId]); // removed interval for socket
 
   useEffect(() => {
     endRef.current?.scrollIntoView();
@@ -109,6 +142,15 @@ export function MessageThread() {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
+
+    if (peer.isPrivate) {
+       const isFollowing = systemData.follows.some(f => f.followerId === currentUser.id && f.followingId === peer.id);
+       if (!isFollowing) {
+           toast.error("You must follow this private account to send messages");
+           return;
+       }
+    }
+
     try {
       const res = await api.sendMessage(currentUser.id, conversationId, text);
       if (res.message) {
@@ -131,7 +173,11 @@ export function MessageThread() {
                <h2 className="font-bold text-slate-900 text-[14px] leading-tight flex items-center gap-1">
                  {peer.name} {peer.isVerified && <VerifiedBadge isGolden={peer.id === '100000'} size={12} />}
                </h2>
-               <span className="text-[10px] text-pink-500 font-bold uppercase tracking-widest">Active</span>
+               {isTyping ? (
+                 <span className="text-[10px] text-pink-500 font-bold tracking-widest italic animate-pulse">typing...</span>
+               ) : (
+                 <span className="text-[10px] text-pink-500 font-bold uppercase tracking-widest">Active</span>
+               )}
              </div>
            </div>
          </div>
@@ -168,7 +214,10 @@ export function MessageThread() {
               <ImageIcon className="w-6 h-6" />
             </button>
             <input 
-              value={text} onChange={e=>setText(e.target.value)}
+              value={text} onChange={e => {
+                setText(e.target.value);
+                socket?.emit('typing', { senderId: currentUser.id, receiverId: peer.id });
+              }}
               placeholder="Message..." 
               className="flex-1 bg-slate-100/50 rounded-full px-5 py-3 border border-slate-200 text-sm font-bold outline-none focus:ring-2 focus:ring-pink-300 focus:bg-white transition-all shadow-inner placeholder-slate-400"
             />
