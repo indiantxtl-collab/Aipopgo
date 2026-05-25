@@ -34,6 +34,7 @@ function AppRoutes() {
     <Route path="/u/:username/following" element={<FollowStats type="following" />} />
 
     <Route path="/home" element={<Home />} />
+    <Route path="/profile" element={<Profile />} />
     <Route path="/search" element={<Search />} />
     <Route path="/notifications" element={<Notifications />} />
     <Route path="/messages" element={<MessagesList />} />
