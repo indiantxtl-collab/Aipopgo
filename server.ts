@@ -415,23 +415,35 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 async function startViteServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
+
     const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa'
+      server: {
+        middlewareMode: true,
+      },
+      appType: 'spa',
     });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+
     app.use(express.static(distPath));
-    app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
+
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
   }
 
   httpServer.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
-if (process.env.NODE_ENV !== 'production' || process.argv.includes('server.cjs')) {
+if (
+  process.env.NODE_ENV !== 'production' ||
+  process.argv.includes('server.cjs')
+) {
   startViteServer();
 }
 
-module.exports = app;
+export default app;
