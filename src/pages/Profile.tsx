@@ -35,9 +35,17 @@ export function Profile() {
   }
   const db = systemData;
   
-  const user = username 
-    ? db.users.find(u => u.username === username)
-    : currentUser;
+  const user = username
+  ? db.users.find(
+      u =>
+        u.username?.toLowerCase().trim() ===
+        username?.toLowerCase().trim()
+    )
+  : currentUser;
+
+console.log('Current User:', currentUser);
+console.log('Username Param:', username);
+console.log('All Users:', db.users);
 
   if (!user) {
     return (
