@@ -101,16 +101,31 @@ export function MessageThread() {
   const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
+    let pollingInterval: any;
+    
+    // Poll as fallback for Vercel where WebSockets aren't supported
+    const pollMessages = () => {
+      api.getMessages(conversationId).then(setMessages);
+    };
+    
+    pollMessages();
+    pollingInterval = setInterval(pollMessages, 3000);
+
     if (!socket) {
-      socket = io({
-        transports: ['polling', 'websocket'],
-        reconnectionDelayMax: 10000,
-      });
-      socket.on('connect_error', (err) => {
-        console.warn('Socket connection error:', err);
-      });
-      socket.emit('join', currentUser.id);
+      try {
+        socket = io({
+          transports: ['polling', 'websocket'],
+          reconnection: false,
+        });
+        socket.on('connect_error', (err) => {
+          console.warn('Socket connection error (expected on Vercel):', err);
+        });
+        socket.emit('join', currentUser.id);
+      } catch (e) {
+        console.warn('Socket init failed', e);
+      }
     }
+    
     const handleNew = (msg: any) => {
        if (msg.conversationId === conversationId) {
           setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
@@ -122,18 +137,18 @@ export function MessageThread() {
           setTimeout(() => setIsTyping(false), 2000);
        }
     };
-    socket.on('new_message', handleNew);
-    socket.on('typing', handleTyping);
+    
+    if (socket) {
+      socket.on('new_message', handleNew);
+      socket.on('typing', handleTyping);
+    }
 
     return () => {
+       clearInterval(pollingInterval);
        socket?.off('new_message', handleNew);
        socket?.off('typing', handleTyping);
     };
   }, [currentUser.id, conversationId, userId]);
-
-  useEffect(() => {
-    api.getMessages(conversationId).then(setMessages);
-  }, [conversationId]); // removed interval for socket
 
   useEffect(() => {
     endRef.current?.scrollIntoView();
