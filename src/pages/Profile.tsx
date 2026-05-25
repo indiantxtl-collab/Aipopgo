@@ -59,12 +59,20 @@ export function Profile() {
 
   const cleanUsername = username?.replace('@', '').toLowerCase().trim();
 
-let user = cleanUsername
-  ? db.users.find(
-      (u) =>
-        u.username?.toLowerCase().trim() === cleanUsername
-    )
+let user = username
+  ? db.users.find((u) => {
+      if (!u.username) return false;
+
+      return (
+        u.username.toLowerCase().trim() ===
+        username.toLowerCase().replace('@', '').trim()
+      );
+    })
   : currentUser;
+
+if (!user && currentUser?.username === username) {
+  user = currentUser;
+}
 
   if (!user) {
     return (
