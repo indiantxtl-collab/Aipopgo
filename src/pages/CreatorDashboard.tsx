@@ -7,7 +7,13 @@ import { VerifiedBadge } from '../components/ui/VerifiedBadge';
 function DashboardMenu() {
   const { currentUser, systemData } = useAuth();
   const navigate = useNavigate();
-  if (!systemData) return null;
+  if (!systemData) {
+    return (
+      <div className="w-full flex-col flex items-center bg-slate-50 min-h-screen justify-center">
+         <div className="w-10 h-10 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin mb-4" />
+      </div>
+    );
+  }
   const db = systemData;
 
   const container = {

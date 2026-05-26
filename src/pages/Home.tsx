@@ -24,7 +24,15 @@ export function Home() {
     return () => observer.disconnect();
   }, []);
   
-  if (!systemData) return null;
+  if (!systemData) {
+    return (
+      <div className="w-full flex-col flex items-center bg-slate-50 min-h-screen justify-center">
+         <div className="w-10 h-10 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin mb-4" />
+         <p className="text-slate-500 font-bold">Connecting to Ai Pop...</p>
+      </div>
+    );
+  }
+  
   const db = systemData;
   
   const aiUser = db.users.find(u => u.id === AI_USER_ID);

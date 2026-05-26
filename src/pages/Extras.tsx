@@ -83,8 +83,13 @@ export function Search() {
   const [q, setQ] = useState('');
   const navigate = useNavigate();
 
-  // Handle case where systemData is still loading
-  if (!systemData) return null;
+  if (!systemData) {
+    return (
+      <div className="w-full flex-col flex items-center bg-slate-50 min-h-screen justify-center">
+         <div className="w-10 h-10 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin mb-4" />
+      </div>
+    );
+  }
 
   const results = systemData.users.filter(u => 
     u.username.toLowerCase().includes(q.toLowerCase()) || 

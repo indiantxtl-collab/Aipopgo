@@ -29,8 +29,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const freshUser = data.users.find((u: User) => u.id === prevUser.id);
         return freshUser || prevUser;
       });
+      return data;
     } catch (e) {
       console.error("Failed to load system data", e);
+      return null;
     }
   }, []);
 
@@ -38,12 +40,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let globalChannel: ReturnType<typeof supabase.channel> | null = null;
     
     const initApp = async () => {
-      await refreshSystemData();
+      // Fallback timeout to guarantee UI renders even if DB hangs
+      const timeoutId = setTimeout(() => {
+        setIsLoading(false);
+      }, 5000);
+
+      const data = await refreshSystemData();
       
       const storedUserId = localStorage.getItem('ai_pop_session');
-      if (storedUserId) {
+      if (storedUserId && data) {
         try {
-          const data = await api.getSystemData();
           const user = data.users.find((u: User) => u.id === storedUserId);
           if (user) {
             setCurrentUser(user);
@@ -54,6 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error("Failed to restore session", e);
         }
       }
+      
+      clearTimeout(timeoutId);
       setIsLoading(false);
 
       // Super powerful: Automatically listen to all changes across all tables to keep the single source of truth updated in Realtime

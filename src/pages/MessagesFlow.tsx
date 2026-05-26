@@ -125,7 +125,13 @@ export function MessageThread() {
     endRef.current?.scrollIntoView();
   }, [messages]);
 
-  if (!currentUser || !systemData || !userId) return null;
+  if (!currentUser || !systemData || !userId) {
+    return (
+      <div className="w-full flex-col flex items-center bg-slate-50 min-h-screen justify-center">
+         <div className="w-10 h-10 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
   const peer = systemData.users.find(u => u.id === userId);
   if (!peer) return <div className="p-10">User not found</div>;
 

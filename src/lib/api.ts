@@ -45,8 +45,8 @@ export const api = {
         if (!u.avatarUrl) { repaired.avatarUrl = `https://api.dicebear.com/7.x/notionists/svg?seed=${u.username || u.id}&backgroundColor=fbbf24`; needsRepair = true; }
 
         // Recalculate true follower counts if they differ (prevents inconsistent follower counters)
-        const trueFollowers = follows?.filter(f => f.followingId === u.id).length || 0;
-        const trueFollowing = follows?.filter(f => f.followerId === u.id).length || 0;
+        const trueFollowers = (follows || []).filter((f: any) => f.followingId === u.id).length;
+        const trueFollowing = (follows || []).filter((f: any) => f.followerId === u.id).length;
         
         // We override AI user count to remain large for its premium look
         if (u.id !== AI_USER_ID) {
@@ -62,27 +62,19 @@ export const api = {
         }
 
         if (needsRepair) {
-           usersToRepair.push(repaired);
+           // We do not save this to the database during getSystemData to prevent infinite loop.
+           // We just use the repaired object for the frontend state.
         }
         return repaired;
       });
 
-      // Background repair
-      if (usersToRepair.length > 0) {
-         Promise.all(usersToRepair.map(r => supabase.from('users').update({
-            followersCount: r.followersCount,
-            followingCount: r.followingCount,
-            bio: r.bio,
-            avatarUrl: r.avatarUrl
-         }).eq('id', r.id))).catch(console.error);
-      }
-      
-      if (settingsToCreate.length > 0) {
-         supabase.from('settings').upsert(settingsToCreate).catch(console.error);
-      }
+      // We remove the background repair database writes entirely
+      // to stop the infinite refresh loop.
     }
+    
+    let finalUsers = users || [];
 
-    if (users && !users.find(u => u.id === AI_USER_ID)) {
+    if (!finalUsers.find((u: any) => u.id === AI_USER_ID)) {
       const aiUser = {
         id: AI_USER_ID,
         name: 'Ai',
@@ -98,12 +90,13 @@ export const api = {
         joinDate: new Date().toISOString(),
         settings: { savedPosts: [] }
       };
-      await supabase.from('users').upsert(aiUser);
-      users.push(aiUser);
+      
+      finalUsers.push(aiUser);
+      supabase.from('users').upsert(aiUser).catch(console.error); // Async background init
     }
 
     return {
-      users: users || [],
+      users: finalUsers,
       posts: posts || [],
       votes: [],
       comments: comments || [],
