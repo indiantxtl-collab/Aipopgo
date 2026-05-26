@@ -2,12 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Send, MessageCircle } from 'lucide-react';
 import { api } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { Comment, Post } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { VerifiedBadge } from './VerifiedBadge';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+
+import { createPortal } from 'react-dom';
 
 export function CommentsSheet({ post, onClose }: { post: Post; onClose: () => void }) {
   const [comments, setComments] = useState<Comment[]>([]);
@@ -21,6 +24,21 @@ export function CommentsSheet({ post, onClose }: { post: Post; onClose: () => vo
       setComments(c);
       setIsLoading(false);
     });
+
+    const channel = supabase.channel(`comments_${post.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter: `postId=eq.${post.id}` }, payload => {
+          setComments(prev => {
+             if (prev.some(c => c.id === payload.new.id || c.content === payload.new.content && c.authorId === payload.new.authorId && c.id.startsWith('temp-'))) {
+                return prev.map(c => c.content === payload.new.content && c.authorId === payload.new.authorId && c.id.startsWith('temp-') ? payload.new as any : c);
+             }
+             return [...prev, payload.new as any];
+          });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [post.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,7 +59,7 @@ export function CommentsSheet({ post, onClose }: { post: Post; onClose: () => vo
         createdAt: new Date().toISOString()
       };
       // Optimistic update
-      setComments(prev => [...prev, tempComment]);
+      setComments(prev => [...prev, tempComment as any]);
       setContent('');
 
       const res = await api.addComment(post.id, currentUser.id, content);
@@ -56,9 +74,9 @@ export function CommentsSheet({ post, onClose }: { post: Post; onClose: () => vo
 
   const getUser = (id: string) => systemData?.users.find(u => u.id === id);
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex flex-col justify-end">
+      <div className="fixed inset-0 z-[9999] flex flex-col justify-end">
         <motion.div 
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
@@ -155,6 +173,7 @@ export function CommentsSheet({ post, onClose }: { post: Post; onClose: () => vo
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

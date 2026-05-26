@@ -306,11 +306,23 @@ export function Profile() {
            )}
            {activeTab === 'saved' && (
              <motion.div initial={{opacity:0}} animate={{opacity:1}} className="grid grid-cols-3 gap-1 rounded-2xl overflow-hidden border border-white/50 shadow-sm">
-                {[1,2,3,4,5,6].map(i => (
-                  <div key={i} className="aspect-square bg-white/40 flex items-center justify-center border border-white/20">
-                     <ImageIcon className="w-6 h-6 text-slate-300" />
-                  </div>
-                ))}
+                {user.settings?.savedPosts?.length > 0 ? user.settings.savedPosts.map((savedPostId: string) => {
+                  const p = db.posts.find(x => x.id === savedPostId);
+                  if (!p) return null;
+                  return (
+                    <div key={p.id} className="aspect-square bg-slate-100 flex items-center justify-center border border-white/20 relative cursor-pointer" onClick={() => navigate(`/post/${p.id}`)}>
+                       {p.mediaUrl ? (
+                         p.mediaType === 'video' ? <video src={p.mediaUrl} className="w-full h-full object-cover" /> : <img src={p.mediaUrl} className="w-full h-full object-cover" />
+                       ) : (
+                         <ImageIcon className="w-6 h-6 text-slate-300" />
+                       )}
+                    </div>
+                  );
+                }) : (
+                   <div className="col-span-3 text-center py-10 text-slate-400">
+                      No saved posts yet.
+                   </div>
+                )}
              </motion.div>
            )}
          </div>

@@ -8,10 +8,10 @@ import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
 function TopNav() {
-  const { currentUser } = useAuth();
+  const { currentUser, systemData } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const unreadCount = 3; // mock
+  const unreadCount = systemData?.notifications.filter(n => n.userId === currentUser?.id && !n.isRead).length || 0;
 
   const isHome = location.pathname === '/home';
 

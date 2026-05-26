@@ -6,7 +6,7 @@ export const AI_USER_ID = '100000';
 export const api = {
   getSystemData: async (): Promise<any> => {
     // With Supabase, we fetch initial states directly in context, but for compatibility we fetch all
-    const [
+    let [
       { data: users }, { data: posts }, { data: comments },
       { data: follows }, { data: followReqs },
       { data: notifications }, { data: messages }
@@ -19,6 +19,25 @@ export const api = {
       supabase.from('notifications').select('*'),
       supabase.from('messages').select('*')
     ]);
+
+    if (users && !users.find(u => u.id === AI_USER_ID)) {
+      const aiUser = {
+        id: AI_USER_ID,
+        name: 'Ai',
+        username: 'ai_official',
+        email: 'ai@aipop.com',
+        avatarUrl: '/ai_avatar.svg',
+        coverUrl: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80',
+        bio: "My name is Ai.\nI'm taking part in the contest to decide who is pop and cute.\nMy hobbies are watching baseball, seeing some comedians and playing games.\nThe Goal is to be a person who can support someone. I am working on studying, doing self-improvement and delivering” \nMixchannel id:- 18641424",
+        isVerified: true,
+        role: 'user',
+        followersCount: 15400,
+        followingCount: 3,
+        joinDate: new Date().toISOString()
+      };
+      await supabase.from('users').insert(aiUser);
+      users.push(aiUser);
+    }
 
     return {
       users: users || [],
@@ -98,11 +117,29 @@ export const api = {
     return { post: data };
   },
 
-  likePost: async (id: string): Promise<{ likesCount: number }> => {
+  createNotification: async (userId: string, actorId: string, type: 'like' | 'comment' | 'follow', postId?: string, message?: string) => {
+    if (userId === actorId) return; // Don't notify self
+    const notification = {
+      id: `n_${Date.now()}_${Math.random()}`,
+      userId,
+      actorId,
+      type,
+      postId,
+      message: message || '',
+      isRead: false,
+      timestamp: new Date().toISOString()
+    };
+    await supabase.from('notifications').insert(notification);
+  },
+
+  likePost: async (id: string, actorId?: string): Promise<{ likesCount: number }> => {
     // In production we would use an RPC to increment
-    const { data: post } = await supabase.from('posts').select('likesCount').eq('id', id).single();
+    const { data: post } = await supabase.from('posts').select('likesCount, authorId').eq('id', id).single();
     const newCount = (post?.likesCount || 0) + 1;
     await supabase.from('posts').update({ likesCount: newCount }).eq('id', id);
+    if (actorId && post?.authorId) {
+       await api.createNotification(post.authorId, actorId, 'like', id, 'liked your post');
+    }
     return { likesCount: newCount };
   },
 
@@ -114,11 +151,16 @@ export const api = {
   addComment: async (postId: string, authorId: string, content: string): Promise<{ comment: Comment }> => {
     const newComment = { id: `c_${Date.now()}`, postId, authorId, content, createdAt: new Date().toISOString() };
     const { data } = await supabase.from('comments').insert(newComment).select().single();
+    const { data: post } = await supabase.from('posts').select('authorId').eq('id', postId).single();
+    if (post?.authorId) {
+      await api.createNotification(post.authorId, authorId, 'comment', postId, content);
+    }
     return { comment: data as Comment };
   },
 
   followUser: async (followingId: string, followerId: string): Promise<any> => {
     await supabase.from('follows').insert({ followerId, followingId });
+    await api.createNotification(followingId, followerId, 'follow', undefined, 'started following you');
     return { status: 'success' };
   },
 

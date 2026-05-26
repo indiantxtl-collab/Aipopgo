@@ -153,8 +153,8 @@ export function MessageThread() {
   };
 
   return (
-    <div className="w-full bg-slate-50 min-h-[calc(100vh-56px)] flex flex-col relative max-w-md mx-auto">
-      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-4 py-3 flex items-center justify-between shadow-sm">
+    <div className="w-full bg-slate-50 h-[100dvh] flex flex-col relative max-w-md mx-auto">
+      <div className="flex-shrink-0 z-20 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-4 py-3 flex items-center justify-between shadow-sm">
          <div className="flex items-center gap-3">
            <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100">
              <ChevronLeft className="w-6 h-6 text-slate-600" />
@@ -175,7 +175,7 @@ export function MessageThread() {
          </div>
       </div>
       
-      <div className="flex-[1] overflow-y-auto p-4 space-y-4 pb-32 flex flex-col">
+      <div className="flex-[1] overflow-y-auto p-4 space-y-4 flex flex-col">
          {messages.length === 0 && (
            <div className="text-center py-10 flex flex-col items-center flex-1 justify-center">
              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 border border-slate-100 shadow-sm">
@@ -188,11 +188,14 @@ export function MessageThread() {
          {messages.map(m => {
             const isMe = m.senderId === currentUser.id;
             return (
-              <div key={m.id} className={`flex max-w-[85%] ${isMe ? 'ml-auto' : 'mr-auto'}`}>
+              <div key={m.id} className={`flex flex-col max-w-[85%] ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
                 <div className={`px-4 py-3 rounded-[1.5rem] text-[15px] font-medium leading-relaxed shadow-sm ${
                   isMe ? 'bg-gradient-to-tr from-pink-500 to-orange-400 text-white rounded-br-[4px]' : 'bg-white text-slate-800 rounded-bl-[4px] border border-slate-100'
                 }`}>
                   {m.text}
+                </div>
+                <div className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-widest">
+                  {isMe ? 'Sent' : formatDistanceToNow(new Date(m.timestamp))}
                 </div>
               </div>
             )
@@ -200,7 +203,7 @@ export function MessageThread() {
          <div ref={endRef} />
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/90 backdrop-blur-xl border-t border-slate-100 pb-safe z-30 max-w-md mx-auto">
+      <div className="flex-shrink-0 p-3 bg-white/90 backdrop-blur-xl border-t border-slate-100 pb-safe z-30 max-w-md mx-auto w-full">
          <form onSubmit={handleSend} className="flex gap-2 items-center">
             <button type="button" className="p-2 text-slate-400 hover:text-pink-500 transition-colors">
               <ImageIcon className="w-6 h-6" />

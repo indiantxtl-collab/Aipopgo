@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { AI_USER_ID } from '../lib/api';
 import { AiHeroCard } from '../components/ui/AiHeroCard';
@@ -8,6 +8,21 @@ import { Sparkles } from 'lucide-react';
 
 export function Home() {
   const { systemData, currentUser } = useAuth();
+  const [visibleCount, setVisibleCount] = useState(5);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => prev + 5);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    if (scrollRef.current) observer.observe(scrollRef.current);
+    return () => observer.disconnect();
+  }, []);
   
   if (!systemData) return null;
   const db = systemData;
@@ -27,6 +42,8 @@ export function Home() {
     if (!a.isPinned && b.isPinned) return 1;
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
+
+  const visiblePosts = posts.slice(0, visibleCount);
 
   if (!aiUser) return null;
 
@@ -55,20 +72,26 @@ export function Home() {
         </motion.div>
         
         <div className="space-y-6">
-          {posts.map((post, i) => {
+          {visiblePosts.map((post, i) => {
             const author = db.users.find(u => u.id === post.authorId);
             return (
               <motion.div
                 key={post.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: 0.05 }}
               >
                 <FeedPost post={post} author={author} />
               </motion.div>
             );
           })}
           
+          {posts.length > visibleCount && (
+            <div ref={scrollRef} className="py-6 flex justify-center">
+              <div className="w-6 h-6 rounded-full border-2 border-pink-200 border-t-pink-500 animate-spin" />
+            </div>
+          )}
+
           {posts.length === 0 && (
             <div className="text-center py-16 glass-card rounded-[2rem] border border-white/60 flex flex-col items-center">
               <div className="w-16 h-16 bg-pink-50 rounded-full flex items-center justify-center mb-4">

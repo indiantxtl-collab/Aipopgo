@@ -133,7 +133,7 @@ export function AiHeroCard({ aiUser }: { aiUser: User }) {
            </div>
         </div>
 
-        <p className="text-[13px] text-slate-600 mb-6 text-center leading-relaxed font-medium px-2 max-h-20 overflow-y-auto no-scrollbar">
+        <p className="text-[13px] text-slate-600 mb-6 text-center leading-relaxed font-medium px-2 max-h-32 overflow-y-auto no-scrollbar whitespace-pre-wrap">
           {aiUser.bio}
         </p>
 

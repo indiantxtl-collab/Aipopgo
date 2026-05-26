@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="256" fill="#fcd34d" />
+  <circle cx="256" cy="256" r="180" fill="#fdb3e0" />
+  <text x="50%" y="54%" text-anchor="middle" font-family="-apple-system, sans-serif" font-weight="900" font-size="120" fill="#fff" dy=".3em">AI</text>
+</svg>

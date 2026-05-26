@@ -14,7 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 export function FeedPost({ post, author }: { post: Post; author?: User }) {
   const { currentUser, refreshSystemData } = useAuth();
   const [isLiked, setIsLiked] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(currentUser?.settings?.savedPosts?.includes(post.id) || false);
   const [likesCount, setLikesCount] = useState(post.likesCount);
   const [showComments, setShowComments] = useState(false);
   const [showHeartAnim, setShowHeartAnim] = useState(false);
@@ -28,7 +28,7 @@ export function FeedPost({ post, author }: { post: Post; author?: User }) {
   const handleLike = async () => {
     if (isLiked) return; 
     try {
-      const res = await api.likePost(post.id);
+      const res = await api.likePost(post.id, currentUser?.id);
       if (res.likesCount) {
          setLikesCount(res.likesCount);
          setIsLiked(true);
@@ -44,9 +44,30 @@ export function FeedPost({ post, author }: { post: Post; author?: User }) {
     setTimeout(() => setShowHeartAnim(false), 1000);
   };
 
-  const handleSave = () => {
-    setIsSaved(!isSaved);
-    toast.success(isSaved ? "Removed from saved" : "Saved to gallery");
+  const handleSave = async () => {
+    if (!currentUser) {
+      toast.error('Login to save posts');
+      return;
+    }
+    const currentlySaved = isSaved;
+    setIsSaved(!currentlySaved);
+    
+    try {
+      let savedPosts = currentUser.settings?.savedPosts || [];
+      if (currentlySaved) {
+        savedPosts = savedPosts.filter((id: string) => id !== post.id);
+      } else {
+        savedPosts = [...savedPosts, post.id];
+      }
+      await api.updateProfile(currentUser.id, { 
+        settings: { ...currentUser.settings, savedPosts }
+      });
+      await refreshSystemData();
+      toast.success(currentlySaved ? "Removed from saved" : "Saved to gallery");
+    } catch (err) {
+      setIsSaved(currentlySaved);
+      toast.error("Failed to save");
+    }
   };
 
   const copyLink = () => {
