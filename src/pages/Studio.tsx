@@ -22,29 +22,35 @@ export function Studio() {
   const [caption, setCaption] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('Normal');
   const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('File too large (max 50MB)');
+      return;
+    }
     
     setIsUploading(true);
     try {
       const res = await api.uploadFile(file);
       if (res.url) {
         setMediaUrl(res.url);
+        setMediaType(file.type.startsWith('video/') ? 'video' : 'image');
       } else {
-        toast.error("Upload failed");
+        toast.error("Upload failed: " + res.error);
       }
-    } catch(err) {
-      toast.error("Upload failed");
+    } catch(err: any) {
+      toast.error("Upload failed: " + err.message);
     } finally {
       setIsUploading(false);
     }
   };
 
-  const isVideo = mediaUrl.includes('data:video');
+  const isVideo = mediaType === 'video';
 
   const handlePublish = async () => {
     if (!currentUser) return;
@@ -71,8 +77,9 @@ export function Studio() {
       await refreshSystemData();
       toast.success("Successfully Shared!");
       navigate('/home');
-    } catch(err) {
-      toast.error("Failed to publish");
+    } catch(err: any) {
+      console.error(err);
+      toast.error("Failed to publish: " + err.message);
     }
   };
 

@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { 
   User, Bell, Shield, Palette, Globe, Lock, Ban, 
   Bookmark, HelpCircle, Info, FileText, Trash2, LogOut,
-  ChevronRight, ArrowLeft, Check
+  ChevronRight, ArrowLeft, Check, Heart, Send
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage, LANGUAGES } from '../context/LanguageContext';
@@ -131,8 +131,9 @@ function GenericSettingsPage({ title, items, settingsKey }: { title: string, ite
       });
       await refreshSystemData();
       toast.success('Settings saved');
-    } catch (e) {
-      toast.error('Failed to save settings');
+    } catch (e: any) {
+      console.error(e);
+      toast.error('Failed to save settings: ' + e.message);
     }
   };
 

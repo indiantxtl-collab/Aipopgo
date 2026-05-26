@@ -276,7 +276,7 @@ export function Profile() {
                   <motion.button whileTap={{scale:0.95}} onClick={handleFollow} disabled={isFollowing} className="flex-[2] bg-gradient-to-r from-pink-500 to-yellow-400 text-white font-black py-3.5 rounded-2xl shadow-xl shadow-pink-300/30 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:shadow-none disabled:transform-none">
                     {isFollowing ? 'Following' : 'Follow'}
                   </motion.button>
-                  <motion.button whileTap={{scale:0.95}} className="flex-1 glass-panel text-slate-700 font-black py-3.5 rounded-2xl hover:bg-white transition-all shadow-sm">
+                  <motion.button whileTap={{scale:0.95}} onClick={() => navigate('/messages/new/' + user.id)} className="flex-1 glass-panel text-slate-700 font-black py-3.5 rounded-2xl hover:bg-white transition-all shadow-sm">
                     Message
                   </motion.button>
                 </>

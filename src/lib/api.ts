@@ -9,7 +9,8 @@ export const api = {
     let [
       { data: users }, { data: posts }, { data: comments },
       { data: follows }, { data: followReqs },
-      { data: notifications }, { data: messages }
+      { data: notifications }, { data: messages },
+      { data: settingsRows }
     ] = await Promise.all([
       supabase.from('users').select('*'),
       supabase.from('posts').select('*').order('createdAt', { ascending: false }),
@@ -17,15 +18,28 @@ export const api = {
       supabase.from('follows').select('*'),
       supabase.from('follow_requests').select('*'),
       supabase.from('notifications').select('*'),
-      supabase.from('messages').select('*')
+      supabase.from('messages').select('*'),
+      supabase.from('settings').select('*')
     ]);
 
     // Apply defaults to old users gracefully
     if (users) {
       const usersToRepair: any[] = [];
+      const settingsToCreate: any[] = [];
+      
       users = users.map((u: any) => {
         let needsRepair = false;
         const repaired = { ...u };
+        
+        // Attach settings correctly via the settings table
+        const userSettings = settingsRows?.find(s => s.userId === u.id || s.user_id === u.id);
+        if (userSettings) {
+           repaired.settings = userSettings.preferences || userSettings.settings || {};
+        } else {
+           repaired.settings = { savedPosts: [] };
+           settingsToCreate.push({ userId: u.id, user_id: u.id, preferences: repaired.settings, settings: repaired.settings });
+        }
+
         if (!u.settings) { repaired.settings = { savedPosts: [] }; needsRepair = true; }
         if (!u.bio) { repaired.bio = 'New user ✨'; needsRepair = true; }
         if (!u.avatarUrl) { repaired.avatarUrl = `https://api.dicebear.com/7.x/notionists/svg?seed=${u.username || u.id}&backgroundColor=fbbf24`; needsRepair = true; }
@@ -56,12 +70,15 @@ export const api = {
       // Background repair
       if (usersToRepair.length > 0) {
          Promise.all(usersToRepair.map(r => supabase.from('users').update({
-            settings: r.settings,
             followersCount: r.followersCount,
             followingCount: r.followingCount,
             bio: r.bio,
             avatarUrl: r.avatarUrl
          }).eq('id', r.id))).catch(console.error);
+      }
+      
+      if (settingsToCreate.length > 0) {
+         supabase.from('settings').upsert(settingsToCreate).catch(console.error);
       }
     }
 
@@ -133,12 +150,25 @@ export const api = {
   },
 
   uploadFile: async (file: File): Promise<{ url?: string; error?: string }> => {
-    const ext = file.name.split('.').pop();
-    const path = `${Date.now()}.${ext}`;
-    const { data, error } = await supabase.storage.from('media').upload(path, file);
-    if (error) return { error: error.message };
-    const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
-    return { url: urlData.publicUrl };
+    try {
+      // Ensure 'media' bucket exists
+      const { data: buckets } = await supabase.storage.listBuckets();
+      if (!buckets?.find(b => b.name === 'media')) {
+         await supabase.storage.createBucket('media', { public: true });
+      }
+
+      const ext = file.name.split('.').pop() || 'tmp';
+      const path = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+      
+      const { data, error } = await supabase.storage.from('media').upload(path, file, { upsert: true });
+      if (error) return { error: error.message };
+      
+      const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+      return { url: urlData.publicUrl };
+    } catch (e: any) {
+      console.error(e);
+      return { error: e.message };
+    }
   },
 
   vote: async (voterId: string): Promise<{ totalVotes?: number, error?: string }> => {
@@ -146,8 +176,23 @@ export const api = {
   },
 
   createPost: async (post: Post): Promise<{ post: Post }> => {
-    const { data, error } = await supabase.from('posts').insert(post).select().single();
-    if (error) throw error;
+    const safePost = {
+      id: post.id,
+      authorId: post.authorId,
+      caption: post.caption,
+      mediaUrl: post.mediaUrl,
+      mediaType: post.mediaType,
+      filterName: post.filterName,
+      createdAt: post.createdAt,
+      likesCount: post.likesCount || 0,
+      commentsCount: post.commentsCount || 0,
+      viewsCount: post.viewsCount || 0
+    };
+    const { data, error } = await supabase.from('posts').insert(safePost).select().single();
+    if (error) {
+       console.error("createPost error", error);
+       throw error;
+    }
     return { post: data };
   },
 
@@ -166,7 +211,6 @@ export const api = {
   createNotification: async (userId: string, actorId: string, type: 'like' | 'comment' | 'follow', postId?: string, message?: string) => {
     if (userId === actorId) return; // Don't notify self
     const notification = {
-      id: `n_${Date.now()}_${Math.random()}`,
       userId,
       actorId,
       type,
@@ -175,7 +219,8 @@ export const api = {
       isRead: false,
       timestamp: new Date().toISOString()
     };
-    await supabase.from('notifications').insert(notification);
+    const { error } = await supabase.from('notifications').insert(notification);
+    if (error) console.error("createNotification error:", error);
   },
 
   likePost: async (id: string, actorId?: string): Promise<{ likesCount: number }> => {
@@ -196,7 +241,8 @@ export const api = {
 
   addComment: async (postId: string, authorId: string, content: string): Promise<{ comment: Comment }> => {
     const newComment = { id: `c_${Date.now()}`, postId, authorId, content, createdAt: new Date().toISOString() };
-    const { data } = await supabase.from('comments').insert(newComment).select().single();
+    const { data, error } = await supabase.from('comments').insert(newComment).select().single();
+    if (error) throw error;
     const { data: post } = await supabase.from('posts').select('authorId').eq('id', postId).single();
     if (post?.authorId) {
       await api.createNotification(post.authorId, authorId, 'comment', postId, content);
@@ -205,21 +251,32 @@ export const api = {
   },
 
   followUser: async (followingId: string, followerId: string): Promise<any> => {
-    // Check if already follows to prevent duplicate
-    const { data: existing } = await supabase.from('follows').select('*').match({ followerId, followingId }).maybeSingle();
-    if (existing) return { status: 'success' };
-    
-    await supabase.from('follows').insert({ followerId, followingId });
-    await api.createNotification(followingId, followerId, 'follow', undefined, 'started following you');
-    
-    // Increment counts
-    const { data: f1 } = await supabase.from('users').select('followingCount').eq('id', followerId).maybeSingle();
-    if (f1) await supabase.from('users').update({ followingCount: (f1?.followingCount || 0) + 1 }).eq('id', followerId);
-    
-    const { data: f2 } = await supabase.from('users').select('followersCount').eq('id', followingId).maybeSingle();
-    if (f2) await supabase.from('users').update({ followersCount: (f2?.followersCount || 0) + 1 }).eq('id', followingId);
-    
-    return { status: 'success' };
+    try {
+      // Check if already follows to prevent duplicate
+      const { data: existing } = await supabase.from('follows').select('*').match({ followerId, followingId }).maybeSingle();
+      if (existing) return { status: 'success' };
+      
+      const { error: insertError } = await supabase.from('follows').insert({ 
+         followerId, 
+         followingId,
+         timestamp: new Date().toISOString()
+      });
+      if (insertError) throw new Error(insertError.message);
+      
+      await api.createNotification(followingId, followerId, 'follow', undefined, 'started following you');
+      
+      // Increment counts
+      const { data: f1 } = await supabase.from('users').select('followingCount').eq('id', followerId).maybeSingle();
+      if (f1) await supabase.from('users').update({ followingCount: (f1?.followingCount || 0) + 1 }).eq('id', followerId);
+      
+      const { data: f2 } = await supabase.from('users').select('followersCount').eq('id', followingId).maybeSingle();
+      if (f2) await supabase.from('users').update({ followersCount: (f2?.followersCount || 0) + 1 }).eq('id', followingId);
+      
+      return { status: 'success' };
+    } catch(e: any) {
+      console.error('followUser error:', e);
+      throw e;
+    }
   },
 
   unfollowUser: async (followingId: string, followerId: string): Promise<any> => {
@@ -247,9 +304,32 @@ export const api = {
   },
 
   updateProfile: async (userId: string, data: Partial<User>): Promise<{ user: User }> => {
-    const { data: user, error } = await supabase.from('users').update(data).eq('id', userId).select().single();
-    if (error) throw error;
-    return { user };
+    // Separate settings and normal profile data
+    const payload = { ...data };
+    const settings = payload.settings;
+    delete payload.settings;
+
+    if (settings) {
+       await supabase.from('settings').upsert({ userId: userId, user_id: userId, preferences: settings, settings: settings }, { onConflict: 'userId' }).catch(() => {
+          supabase.from('settings').upsert({ user_id: userId, preferences: settings, settings: settings }, { onConflict: 'user_id' }).catch(console.error);
+       });
+    }
+    
+    // Only update users table if there's remaining data
+    let returnedUser = null;
+    if (Object.keys(payload).length > 0) {
+      const { data: user, error } = await supabase.from('users').update(payload).eq('id', userId).select().single();
+      if (error) throw error;
+      returnedUser = user;
+    } else {
+      const { data: user } = await supabase.from('users').select('*').eq('id', userId).single();
+      returnedUser = user;
+    }
+    
+    // Stitch settings back into returned user
+    if (returnedUser) returnedUser.settings = settings || returnedUser.settings;
+    
+    return { user: returnedUser };
   },
 
   getNotifications: async (userId: string): Promise<Notification[]> => {
