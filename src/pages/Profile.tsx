@@ -24,24 +24,24 @@ export function Profile() {
   const [activeTab, setActiveTab] = useState('posts');
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
-  
-  if (!systemData) return null;
+  const [isFollowing, setIsFollowing] = useState(false);
+
   const db = systemData;
-  
-  const user = username 
+  const user = db && (username 
     ? db.users.find(u => 
         u.username?.toLowerCase() === username.toLowerCase() || 
         u.id === username
       )
-    : currentUser;
+    : currentUser);
 
-  const isCurrentlyFollowing = user ? db.follows.some(f => f.followerId === currentUser?.id && f.followingId === user.id) : false;
-  const [isFollowing, setIsFollowing] = useState(isCurrentlyFollowing);
+  const isCurrentlyFollowing = user && db ? db.follows.some(f => f.followerId === currentUser?.id && f.followingId === user.id) : false;
 
   // Sync prop changes
   React.useEffect(() => {
      setIsFollowing(isCurrentlyFollowing);
   }, [isCurrentlyFollowing]);
+
+  if (!systemData) return null;
 
   if (!user) {
     return (
@@ -302,6 +302,13 @@ export function Profile() {
               Gallery
               {activeTab === 'saved' && <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-1 bg-pink-500 rounded-t-full" />}
            </button>
+           <button 
+             onClick={() => setActiveTab('activity')}
+             className={cn("pb-4 text-[13px] uppercase tracking-widest font-black transition-colors relative", activeTab === 'activity' ? "text-slate-900" : "text-slate-400 hover:text-slate-600")}
+           >
+              Activity
+              {activeTab === 'activity' && <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-1 bg-pink-500 rounded-t-full" />}
+           </button>
          </div>
 
          <div className="px-4 space-y-6">
@@ -341,6 +348,44 @@ export function Profile() {
                       No saved posts yet.
                    </div>
                 )}
+             </motion.div>
+           )}
+           {activeTab === 'activity' && (
+             <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-3">
+                {(() => {
+                  const activity = db.notifications
+                    .filter(n => n.actorId === user.id && n.userId !== user.id)
+                    .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    .slice(0, 20);
+
+                  if (activity.length === 0) {
+                    return (
+                       <div className="py-16 text-center text-slate-400 flex flex-col items-center glass-card rounded-[2rem] border border-white">
+                          <div className="w-20 h-20 bg-pink-50 rounded-full flex items-center justify-center mb-4">
+                             <Heart className="w-10 h-10 text-pink-300" />
+                          </div>
+                          <p className="font-bold text-[15px] text-slate-600">No activity yet</p>
+                       </div>
+                    );
+                  }
+
+                  return activity.map(notif => {
+                     const targetUser = db.users.find(u => u.id === notif.userId);
+                     if (!targetUser) return null;
+                     return (
+                       <div key={notif.id} className="flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-slate-100 cursor-pointer" onClick={() => navigate(notif.postId ? `/post/${notif.postId}` : `/u/${targetUser.username}`)}>
+                          <img src={targetUser.avatarUrl} className="w-10 h-10 rounded-full object-cover" />
+                          <div className="flex-1 text-[13px] text-slate-600">
+                             <span className="font-bold text-slate-900">{user.name}</span>
+                             {' '}
+                             {notif.type === 'like' ? 'liked a post by' : notif.type === 'comment' ? 'commented on a post by' : 'started following'}
+                             {' '}
+                             <span className="font-bold text-slate-900">{targetUser.name}</span>
+                          </div>
+                       </div>
+                     );
+                  });
+                })()}
              </motion.div>
            )}
          </div>

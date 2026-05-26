@@ -7,6 +7,30 @@ import { VerifiedBadge } from '../components/ui/VerifiedBadge';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 
+function FollowButton({ u, isFollowing, isPending, currentUser, navigate, refreshSystemData }: { u: any, isFollowing: boolean, isPending: boolean, currentUser: any, navigate: any, refreshSystemData: any }) {
+  if (u.id === currentUser.id) return null;
+
+  const toggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      if (isFollowing || isPending) {
+         await api.unfollowUser(u.id, currentUser.id);
+      } else {
+         await api.followUser(u.id, currentUser.id);
+      }
+      refreshSystemData();
+    } catch(err) { toast.error("Action failed"); }
+  };
+
+  if (isFollowing) {
+     return <button onClick={toggle} className="px-4 py-1.5 bg-slate-100 text-slate-700 font-bold rounded-full text-xs">Following</button>;
+  }
+  if (isPending) {
+     return <button onClick={toggle} className="px-4 py-1.5 border border-slate-200 text-slate-400 font-bold rounded-full text-xs">Requested</button>;
+  }
+  return <button onClick={toggle} className="px-4 py-1.5 bg-pink-500 text-white font-bold rounded-full text-xs shadow-md">Follow</button>;
+}
+
 export function FollowStats({ type }: { type: 'followers' | 'following' }) {
   const { username } = useParams<{ username: string }>();
   const { currentUser, systemData, refreshSystemData } = useAuth();
@@ -45,33 +69,6 @@ export function FollowStats({ type }: { type: 'followers' | 'following' }) {
     u.username.toLowerCase().includes(q.toLowerCase())
   );
 
-  const FollowButton = ({ u }: { u: any }) => {
-    const isFollowing = systemData.follows.some(f => f.followerId === currentUser.id && f.followingId === u.id);
-    const isPending = systemData.followRequests.some(r => r.requesterId === currentUser.id && r.targetId === u.id);
-    
-    if (u.id === currentUser.id) return null;
-
-    const toggle = async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      try {
-        if (isFollowing || isPending) {
-           await api.unfollowUser(u.id, currentUser.id);
-        } else {
-           await api.followUser(u.id, currentUser.id);
-        }
-        refreshSystemData();
-      } catch(err) { toast.error("Action failed"); }
-    };
-
-    if (isFollowing) {
-       return <button onClick={toggle} className="px-4 py-1.5 bg-slate-100 text-slate-700 font-bold rounded-full text-xs">Following</button>;
-    }
-    if (isPending) {
-       return <button onClick={toggle} className="px-4 py-1.5 border border-slate-200 text-slate-400 font-bold rounded-full text-xs">Requested</button>;
-    }
-    return <button onClick={toggle} className="px-4 py-1.5 bg-pink-500 text-white font-bold rounded-full text-xs shadow-md">Follow</button>;
-  };
-
   return (
     <div className="w-full min-h-[calc(100vh-56px)] bg-slate-50 pb-20 relative max-w-md mx-auto">
       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-xl border-b border-white px-4 py-3 flex items-center justify-between">
@@ -94,7 +91,11 @@ export function FollowStats({ type }: { type: 'followers' | 'following' }) {
       </div>
 
       <div className="mt-6 px-4 space-y-4">
-        {filtered.map(u => (
+        {filtered.map(u => {
+          const isFollowing = systemData.follows.some(f => f.followerId === currentUser.id && f.followingId === u.id);
+          const isPending = systemData.followRequests?.some(r => r.requesterId === currentUser.id && r.targetId === u.id) || false;
+
+          return (
           <div key={u.id} onClick={() => navigate(`/u/${u.username}`)} className="flex items-center gap-3 glass-card p-3 rounded-2xl cursor-pointer shadow-sm">
              <div className="relative">
                <img src={u.avatarUrl || `https://api.dicebear.com/7.x/notionists/svg?seed=${u.username}&backgroundColor=fbcfe8`} className="w-12 h-12 rounded-full object-cover border border-white" />
@@ -104,9 +105,10 @@ export function FollowStats({ type }: { type: 'followers' | 'following' }) {
                <p className="font-bold text-sm text-slate-900 truncate">{u.name}</p>
                <p className="text-xs text-slate-500 font-medium truncate">@{u.username}</p>
              </div>
-             <FollowButton u={u} />
+             <FollowButton u={u} isFollowing={isFollowing} isPending={isPending} currentUser={currentUser} navigate={navigate} refreshSystemData={refreshSystemData} />
           </div>
-        ))}
+          );
+        })}
 
         {filtered.length === 0 && (
           <div className="text-center py-10">

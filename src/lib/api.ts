@@ -206,18 +206,18 @@ export const api = {
 
   followUser: async (followingId: string, followerId: string): Promise<any> => {
     // Check if already follows to prevent duplicate
-    const { data: existing } = await supabase.from('follows').select('*').match({ followerId, followingId }).single();
+    const { data: existing } = await supabase.from('follows').select('*').match({ followerId, followingId }).maybeSingle();
     if (existing) return { status: 'success' };
     
     await supabase.from('follows').insert({ followerId, followingId });
     await api.createNotification(followingId, followerId, 'follow', undefined, 'started following you');
     
     // Increment counts
-    const { data: f1 } = await supabase.from('users').select('followingCount').eq('id', followerId).single();
-    await supabase.from('users').update({ followingCount: (f1?.followingCount || 0) + 1 }).eq('id', followerId);
+    const { data: f1 } = await supabase.from('users').select('followingCount').eq('id', followerId).maybeSingle();
+    if (f1) await supabase.from('users').update({ followingCount: (f1?.followingCount || 0) + 1 }).eq('id', followerId);
     
-    const { data: f2 } = await supabase.from('users').select('followersCount').eq('id', followingId).single();
-    await supabase.from('users').update({ followersCount: (f2?.followersCount || 0) + 1 }).eq('id', followingId);
+    const { data: f2 } = await supabase.from('users').select('followersCount').eq('id', followingId).maybeSingle();
+    if (f2) await supabase.from('users').update({ followersCount: (f2?.followersCount || 0) + 1 }).eq('id', followingId);
     
     return { status: 'success' };
   },
@@ -227,11 +227,11 @@ export const api = {
     if (error) return; // ignore
     
     // Decrement counts
-    const { data: f1 } = await supabase.from('users').select('followingCount').eq('id', followerId).single();
-    await supabase.from('users').update({ followingCount: Math.max(0, (f1?.followingCount || 0) - 1) }).eq('id', followerId);
+    const { data: f1 } = await supabase.from('users').select('followingCount').eq('id', followerId).maybeSingle();
+    if (f1) await supabase.from('users').update({ followingCount: Math.max(0, (f1?.followingCount || 0) - 1) }).eq('id', followerId);
     
-    const { data: f2 } = await supabase.from('users').select('followersCount').eq('id', followingId).single();
-    await supabase.from('users').update({ followersCount: Math.max(0, (f2?.followersCount || 0) - 1) }).eq('id', followingId);
+    const { data: f2 } = await supabase.from('users').select('followersCount').eq('id', followingId).maybeSingle();
+    if (f2) await supabase.from('users').update({ followersCount: Math.max(0, (f2?.followersCount || 0) - 1) }).eq('id', followingId);
     
     return { status: 'success' };
   },

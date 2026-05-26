@@ -89,16 +89,13 @@ export function MessageThread() {
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
-
-  if (!currentUser || !systemData || !userId) return null;
-  const peer = systemData.users.find(u => u.id === userId);
-  if (!peer) return <div className="p-10">User not found</div>;
-
-  const conversationId = [currentUser.id, userId].sort().join('_');
-
   const [isTyping, setIsTyping] = useState(false);
 
+  const conversationId = currentUser && userId ? [currentUser.id, userId].sort().join('_') : '';
+
   useEffect(() => {
+    if (!conversationId || !currentUser || !userId) return;
+
     // Initial fetch
     api.getMessages(conversationId).then(setMessages);
 
@@ -106,7 +103,10 @@ export function MessageThread() {
     const channel = supabase
       .channel(`chat_${conversationId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversationId=eq.${conversationId}` }, payload => {
-         setMessages(prev => [...prev, payload.new]);
+         setMessages(prev => {
+           if (prev.some(m => m.id === payload.new.id)) return prev;
+           return [...prev, payload.new];
+         });
       })
       .on('broadcast', { event: 'typing' }, payload => {
          if (payload.payload.senderId === userId) {
@@ -119,11 +119,15 @@ export function MessageThread() {
     return () => {
        supabase.removeChannel(channel);
     };
-  }, [currentUser.id, conversationId, userId]);
+  }, [currentUser?.id, conversationId, userId]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView();
   }, [messages]);
+
+  if (!currentUser || !systemData || !userId) return null;
+  const peer = systemData.users.find(u => u.id === userId);
+  if (!peer) return <div className="p-10">User not found</div>;
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -23,6 +23,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.getSystemData();
       setSystemData(data);
+      // Also update currentUser to reflect real-time settings/followers changes
+      setCurrentUser(prevUser => {
+        if (!prevUser) return prevUser;
+        const freshUser = data.users.find((u: User) => u.id === prevUser.id);
+        return freshUser || prevUser;
+      });
     } catch (e) {
       console.error("Failed to load system data", e);
     }

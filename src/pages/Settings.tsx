@@ -222,12 +222,80 @@ function LanguageSettings() {
   );
 }
 
+function AboutApp() {
+  const navigate = useNavigate();
+  return (
+    <div className="w-full min-h-screen bg-slate-50 pb-20">
+      <div className="bg-white px-4 py-3 sticky top-16 z-30 border-b border-slate-100 flex items-center justify-between">
+         <div className="flex items-center gap-3">
+           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-50">
+             <ArrowLeft className="w-5 h-5 text-slate-600" />
+           </button>
+           <h1 className="font-display font-black text-xl text-slate-900">About App</h1>
+         </div>
+      </div>
+      <div className="p-4 space-y-6">
+         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 text-center space-y-4">
+            <div className="w-20 h-20 bg-gradient-to-tr from-pink-400 to-yellow-400 rounded-full flex items-center justify-center p-[2px] mx-auto shadow-xl">
+               <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
+                 <Heart className="w-10 h-10 text-pink-500 fill-pink-500" />
+               </div>
+            </div>
+            <h2 className="font-display font-black text-2xl text-slate-900">Ai Pop</h2>
+            <p className="text-slate-500 font-bold text-sm">Version 1.0.0 Realtime Edition</p>
+            <div className="w-16 h-1 bg-pink-100 rounded-full mx-auto" />
+            <p className="text-slate-600 text-[15px] leading-relaxed">
+              Ai Pop is an exclusive, premium social platform built for realtime interactions. We connect creators and fans with a seamless glassmorphic experience, instant messaging, live following architectures, and an authentic online identity.
+            </p>
+         </div>
+         <div className="text-center text-xs text-slate-400 font-bold uppercase tracking-wider">
+           © 2026 Ai Pop Network
+         </div>
+      </div>
+    </div>
+  );
+}
+
+function HelpSupport() {
+  const navigate = useNavigate();
+  return (
+    <div className="w-full min-h-screen bg-slate-50 pb-20">
+      <div className="bg-white px-4 py-3 sticky top-16 z-30 border-b border-slate-100 flex items-center justify-between">
+         <div className="flex items-center gap-3">
+           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-50">
+             <ArrowLeft className="w-5 h-5 text-slate-600" />
+           </button>
+           <h1 className="font-display font-black text-xl text-slate-900">Help & Support</h1>
+         </div>
+      </div>
+      <div className="p-4 space-y-4">
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 space-y-4">
+           <h2 className="font-bold text-slate-900 text-lg flex items-center gap-2"><HelpCircle className="w-5 h-5 text-pink-500"/> Troubleshooting</h2>
+           <p className="text-[14px] text-slate-600 leading-relaxed">
+             If you're experiencing sync issues, please refresh the app. Our realtime backend ensures your likes, follows, and messages are continuously safely stored.
+           </p>
+           <div className="w-full h-[1px] bg-slate-100" />
+           <h2 className="font-bold text-slate-900 text-lg flex items-center gap-2"><Lock className="w-5 h-5 text-pink-500"/> Account Recovery</h2>
+           <p className="text-[14px] text-slate-600 leading-relaxed">
+             Lost your password? We can help you gain access securely through email validation.
+           </p>
+        </div>
+        <a href="mailto:support@xova.pro" className="w-full py-4 bg-gradient-to-r from-pink-500 to-orange-400 text-white rounded-2xl font-bold shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-2">
+          <Send className="w-5 h-5" /> Contact support@xova.pro
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export function Settings() {
   return (
     <Routes>
       <Route path="/" element={<SettingsMenu />} />
       <Route path="language" element={<LanguageSettings />} />
-      {SETTING_ITEMS.filter(i => i.id !== 'language').map(item => (
+      <Route path="about" element={<AboutApp />} />
+      <Route path="help" element={<HelpSupport />} />
+      {SETTING_ITEMS.filter(i => !['language', 'about', 'help'].includes(i.id)).map(item => (
          <Route key={item.id} path={item.id} element={<GenericSettingsPage title={item.label} items={SETTINGS_CONTENT[item.id] || ['Enable feature']} settingsKey={item.id} />} />
       ))}
     </Routes>
