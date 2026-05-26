@@ -15,7 +15,7 @@ export function FollowStats({ type }: { type: 'followers' | 'following' }) {
 
   if (!systemData || !currentUser) return null;
 
-  const targetUser = systemData.users.find(u => u.username === username);
+  const targetUser = systemData.users.find(u => u.username?.toLowerCase() === username?.toLowerCase() || u.id === username);
   if (!targetUser) return <div className="p-10 text-center">User not found</div>;
 
   const isOwnProfile = currentUser.id === targetUser.id;

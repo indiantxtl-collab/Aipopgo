@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Heart, UserPlus, MessageCircle, Send, Search as SearchIcon, TrendingUp, Sparkles, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
@@ -80,6 +81,7 @@ export function Notifications() {
 export function Search() {
   const { systemData } = useAuth();
   const [q, setQ] = useState('');
+  const navigate = useNavigate();
 
   // Handle case where systemData is still loading
   if (!systemData) return null;

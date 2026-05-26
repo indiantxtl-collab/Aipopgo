@@ -16,8 +16,17 @@ export function AiHeroCard({ aiUser }: { aiUser: User }) {
   const [goal, setGoal] = useState(10000);
   const [hasVotedToday, setHasVotedToday] = useState(false);
   const [showBurst, setShowBurst] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [isPending, setIsPending] = useState(false);
+  
+  const isCurrentlyFollowing = currentUser ? systemData?.follows.some(f => f.followerId === currentUser.id && f.followingId === aiUser.id) : false;
+  const isCurrentlyPending = currentUser ? systemData?.followRequests?.some(r => r.requesterId === currentUser.id && r.targetId === aiUser.id) : false;
+
+  const [isFollowing, setIsFollowing] = useState(isCurrentlyFollowing || false);
+  const [isPending, setIsPending] = useState(isCurrentlyPending || false);
+
+  useEffect(() => {
+    setIsFollowing(isCurrentlyFollowing || false);
+    setIsPending(isCurrentlyPending || false);
+  }, [isCurrentlyFollowing, isCurrentlyPending]);
 
   useEffect(() => {
     if (systemData) {
@@ -28,9 +37,6 @@ export function AiHeroCard({ aiUser }: { aiUser: User }) {
         const today = new Date().toISOString().split('T')[0];
         const todayVote = systemData.votes.find(v => v.voterId === currentUser.id && v.timestamp.startsWith(today));
         if (todayVote) setHasVotedToday(true);
-        
-        setIsFollowing(systemData.follows.some(f => f.followerId === currentUser.id && f.followingId === aiUser.id));
-        setIsPending(systemData.followRequests?.some(r => r.requesterId === currentUser.id && r.targetId === aiUser.id) || false);
       }
     }
   }, [currentUser, systemData, aiUser]);
@@ -57,18 +63,25 @@ export function AiHeroCard({ aiUser }: { aiUser: User }) {
 
   const handleFollow = async () => {
     if (!currentUser) return navigate('/login');
+    const wasFollowing = isFollowing;
+    const wasPending = isPending;
     try {
       if (isFollowing || isPending) {
-         await api.unfollowUser(aiUser.id, currentUser.id);
          setIsFollowing(false);
          setIsPending(false);
+         await api.unfollowUser(aiUser.id, currentUser.id);
       } else {
+         setIsFollowing(true);
          const res = await api.followUser(aiUser.id, currentUser.id);
-         if (res.status === 'requested') setIsPending(true);
-         else setIsFollowing(true);
+         if (res.status === 'requested') {
+            setIsFollowing(false);
+            setIsPending(true);
+         }
       }
       refreshSystemData();
     } catch(e) {
+      setIsFollowing(wasFollowing);
+      setIsPending(wasPending);
       toast.error('Action failed');
     }
   };

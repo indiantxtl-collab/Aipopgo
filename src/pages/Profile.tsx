@@ -15,7 +15,6 @@ export function Profile() {
   const { currentUser, systemData, refreshSystemData } = useAuth();
   const navigate = useNavigate();
   
-  const [isFollowing, setIsFollowing] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editBio, setEditBio] = useState('');
   const [editName, setEditName] = useState('');
@@ -30,8 +29,19 @@ export function Profile() {
   const db = systemData;
   
   const user = username 
-    ? db.users.find(u => u.username === username)
+    ? db.users.find(u => 
+        u.username?.toLowerCase() === username.toLowerCase() || 
+        u.id === username
+      )
     : currentUser;
+
+  const isCurrentlyFollowing = user ? db.follows.some(f => f.followerId === currentUser?.id && f.followingId === user.id) : false;
+  const [isFollowing, setIsFollowing] = useState(isCurrentlyFollowing);
+
+  // Sync prop changes
+  React.useEffect(() => {
+     setIsFollowing(isCurrentlyFollowing);
+  }, [isCurrentlyFollowing]);
 
   if (!user) {
     return (
@@ -54,14 +64,22 @@ export function Profile() {
 
   const handleFollow = async () => {
     if(!currentUser) return toast.error("Please login to follow");
-    setIsFollowing(true);
-    toast.success(`Following @${user.username}`);
+    
+    const currentlyFollowing = isFollowing;
+    setIsFollowing(!currentlyFollowing);
+    
     try {
-      await api.followUser(user.id, currentUser.id);
+      if (currentlyFollowing) {
+        await api.unfollowUser(user.id, currentUser.id);
+        toast.success(`Unfollowed @${user.username}`);
+      } else {
+        await api.followUser(user.id, currentUser.id);
+        toast.success(`Following @${user.username}`);
+      }
       await refreshSystemData();
     } catch(err) {
-      toast.error('Failed to follow');
-      setIsFollowing(false);
+      toast.error('Failed to update follow status');
+      setIsFollowing(currentlyFollowing);
     }
   };
 

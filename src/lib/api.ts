@@ -20,6 +20,51 @@ export const api = {
       supabase.from('messages').select('*')
     ]);
 
+    // Apply defaults to old users gracefully
+    if (users) {
+      const usersToRepair: any[] = [];
+      users = users.map((u: any) => {
+        let needsRepair = false;
+        const repaired = { ...u };
+        if (!u.settings) { repaired.settings = { savedPosts: [] }; needsRepair = true; }
+        if (!u.bio) { repaired.bio = 'New user ✨'; needsRepair = true; }
+        if (!u.avatarUrl) { repaired.avatarUrl = `https://api.dicebear.com/7.x/notionists/svg?seed=${u.username || u.id}&backgroundColor=fbbf24`; needsRepair = true; }
+
+        // Recalculate true follower counts if they differ (prevents inconsistent follower counters)
+        const trueFollowers = follows?.filter(f => f.followingId === u.id).length || 0;
+        const trueFollowing = follows?.filter(f => f.followerId === u.id).length || 0;
+        
+        // We override AI user count to remain large for its premium look
+        if (u.id !== AI_USER_ID) {
+           if (u.followersCount !== trueFollowers) { repaired.followersCount = trueFollowers; needsRepair = true; }
+           if (u.followingCount !== trueFollowing) { repaired.followingCount = trueFollowing; needsRepair = true; }
+        } else {
+           // Ensure Ai user always has at least 15400 + real followers
+           const aiFollowers = 15400 + trueFollowers;
+           if (u.followersCount !== aiFollowers) {
+             repaired.followersCount = aiFollowers;
+             needsRepair = true;
+           }
+        }
+
+        if (needsRepair) {
+           usersToRepair.push(repaired);
+        }
+        return repaired;
+      });
+
+      // Background repair
+      if (usersToRepair.length > 0) {
+         Promise.all(usersToRepair.map(r => supabase.from('users').update({
+            settings: r.settings,
+            followersCount: r.followersCount,
+            followingCount: r.followingCount,
+            bio: r.bio,
+            avatarUrl: r.avatarUrl
+         }).eq('id', r.id))).catch(console.error);
+      }
+    }
+
     if (users && !users.find(u => u.id === AI_USER_ID)) {
       const aiUser = {
         id: AI_USER_ID,
@@ -33,9 +78,10 @@ export const api = {
         role: 'user',
         followersCount: 15400,
         followingCount: 3,
-        joinDate: new Date().toISOString()
+        joinDate: new Date().toISOString(),
+        settings: { savedPosts: [] }
       };
-      await supabase.from('users').insert(aiUser);
+      await supabase.from('users').upsert(aiUser);
       users.push(aiUser);
     }
 
@@ -159,13 +205,34 @@ export const api = {
   },
 
   followUser: async (followingId: string, followerId: string): Promise<any> => {
+    // Check if already follows to prevent duplicate
+    const { data: existing } = await supabase.from('follows').select('*').match({ followerId, followingId }).single();
+    if (existing) return { status: 'success' };
+    
     await supabase.from('follows').insert({ followerId, followingId });
     await api.createNotification(followingId, followerId, 'follow', undefined, 'started following you');
+    
+    // Increment counts
+    const { data: f1 } = await supabase.from('users').select('followingCount').eq('id', followerId).single();
+    await supabase.from('users').update({ followingCount: (f1?.followingCount || 0) + 1 }).eq('id', followerId);
+    
+    const { data: f2 } = await supabase.from('users').select('followersCount').eq('id', followingId).single();
+    await supabase.from('users').update({ followersCount: (f2?.followersCount || 0) + 1 }).eq('id', followingId);
+    
     return { status: 'success' };
   },
 
   unfollowUser: async (followingId: string, followerId: string): Promise<any> => {
-    await supabase.from('follows').delete().match({ followerId, followingId });
+    const { error } = await supabase.from('follows').delete().match({ followerId, followingId });
+    if (error) return; // ignore
+    
+    // Decrement counts
+    const { data: f1 } = await supabase.from('users').select('followingCount').eq('id', followerId).single();
+    await supabase.from('users').update({ followingCount: Math.max(0, (f1?.followingCount || 0) - 1) }).eq('id', followerId);
+    
+    const { data: f2 } = await supabase.from('users').select('followersCount').eq('id', followingId).single();
+    await supabase.from('users').update({ followersCount: Math.max(0, (f2?.followersCount || 0) - 1) }).eq('id', followingId);
+    
     return { status: 'success' };
   },
 
