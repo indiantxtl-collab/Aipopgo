@@ -3,13 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { VerifiedBadge } from '../components/ui/VerifiedBadge';
 import { ChevronLeft, Send, Sparkles, Plus, Image as ImageIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
-import { io, Socket } from 'socket.io-client';
-
-let socket: Socket | null = null;
 
 export function MessagesList() {
   const { currentUser, systemData } = useAuth();
@@ -86,7 +84,7 @@ export function MessagesList() {
 
 export function MessageThread() {
   const { userId } = useParams<{ userId: string }>();
-  const { currentUser, systemData, refreshSystemData } = useAuth();
+  const { currentUser, systemData } = useAuth();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
@@ -101,52 +99,25 @@ export function MessageThread() {
   const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
-    let pollingInterval: any;
-    
-    // Poll as fallback for Vercel where WebSockets aren't supported
-    const pollMessages = () => {
-      api.getMessages(conversationId).then(setMessages);
-    };
-    
-    pollMessages();
-    pollingInterval = setInterval(pollMessages, 3000);
+    // Initial fetch
+    api.getMessages(conversationId).then(setMessages);
 
-    if (!socket) {
-      try {
-        socket = io({
-          transports: ['polling', 'websocket'],
-          reconnection: false,
-        });
-        socket.on('connect_error', (err) => {
-          console.warn('Socket connection error (expected on Vercel):', err);
-        });
-        socket.emit('join', currentUser.id);
-      } catch (e) {
-        console.warn('Socket init failed', e);
-      }
-    }
-    
-    const handleNew = (msg: any) => {
-       if (msg.conversationId === conversationId) {
-          setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
-       }
-    };
-    const handleTyping = (data: { senderId: string }) => {
-       if (data.senderId === userId) {
-          setIsTyping(true);
-          setTimeout(() => setIsTyping(false), 2000);
-       }
-    };
-    
-    if (socket) {
-      socket.on('new_message', handleNew);
-      socket.on('typing', handleTyping);
-    }
+    // Supabase Realtime Subscription
+    const channel = supabase
+      .channel(`chat_${conversationId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversationId=eq.${conversationId}` }, payload => {
+         setMessages(prev => [...prev, payload.new]);
+      })
+      .on('broadcast', { event: 'typing' }, payload => {
+         if (payload.payload.senderId === userId) {
+            setIsTyping(true);
+            setTimeout(() => setIsTyping(false), 2000);
+         }
+      })
+      .subscribe();
 
     return () => {
-       clearInterval(pollingInterval);
-       socket?.off('new_message', handleNew);
-       socket?.off('typing', handleTyping);
+       supabase.removeChannel(channel);
     };
   }, [currentUser.id, conversationId, userId]);
 
@@ -167,12 +138,18 @@ export function MessageThread() {
     }
 
     try {
-      const res = await api.sendMessage(currentUser.id, conversationId, text);
-      if (res.message) {
-        setMessages(p => [...p, res.message]);
-        setText('');
-      }
+      const sentText = text;
+      setText('');
+      await api.sendMessage(currentUser.id, conversationId, sentText);
     } catch(err) {}
+  };
+
+  const handleTyping = () => {
+    supabase.channel(`chat_${conversationId}`).send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { senderId: currentUser.id }
+    });
   };
 
   return (
@@ -223,7 +200,7 @@ export function MessageThread() {
          <div ref={endRef} />
       </div>
 
-      <div className="fixed bottom-[56px] left-0 right-0 p-3 bg-white/90 backdrop-blur-xl border-t border-slate-100 pb-safe z-30 max-w-md mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/90 backdrop-blur-xl border-t border-slate-100 pb-safe z-30 max-w-md mx-auto">
          <form onSubmit={handleSend} className="flex gap-2 items-center">
             <button type="button" className="p-2 text-slate-400 hover:text-pink-500 transition-colors">
               <ImageIcon className="w-6 h-6" />
@@ -231,7 +208,7 @@ export function MessageThread() {
             <input 
               value={text} onChange={e => {
                 setText(e.target.value);
-                socket?.emit('typing', { senderId: currentUser.id, receiverId: peer.id });
+                handleTyping();
               }}
               placeholder="Message..." 
               className="flex-1 bg-slate-100/50 rounded-full px-5 py-3 border border-slate-200 text-sm font-bold outline-none focus:ring-2 focus:ring-pink-300 focus:bg-white transition-all shadow-inner placeholder-slate-400"

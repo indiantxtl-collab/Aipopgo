@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User, DatabaseSchema } from '../types';
 import { api } from '../lib/api';
+import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -28,6 +29,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let globalChannel: ReturnType<typeof supabase.channel> | null = null;
+    
     const initApp = async () => {
       await refreshSystemData();
       
@@ -46,8 +49,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       setIsLoading(false);
+
+      // Super powerful: Automatically listen to all changes across all tables to keep the single source of truth updated in Realtime
+      if (import.meta.env.VITE_SUPABASE_URL) {
+        globalChannel = supabase.channel('global_db_changes')
+          .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+             refreshSystemData();
+          })
+          .subscribe();
+      }
     };
     initApp();
+
+    return () => {
+      if (globalChannel) {
+        supabase.removeChannel(globalChannel);
+      }
+    }
   }, [refreshSystemData]);
 
   const login = (user: User) => {
